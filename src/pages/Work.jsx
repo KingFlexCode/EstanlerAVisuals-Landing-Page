@@ -1,172 +1,335 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { COLORS, BASE, FOLDER_CATEGORY_MAP, ASPECT_MAP } from "../lib/constants";
-import { Tag, GoldLine, Reveal, Spinner } from "../components/UI";
+import { COLORS, BASE, FOLDER_CATEGORY_MAP, ASPECT_MAP, CATEGORY_LABELS } from "../lib/constants";
 import Footer from "../components/Footer";
 
-const FILTERS = ["All", "Portrait", "Engagement", "Birthday", "Wedding"];
+const FILTERS = ["All", ...Object.values(CATEGORY_LABELS)];
 
+// ─── Spinner ──────────────────────────────────────────────────────────
+function Spinner() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "6rem 0" }}>
+      <div style={{
+        width: "28px", height: "28px",
+        border: `2px solid ${COLORS.border}`,
+        borderTop: `2px solid ${COLORS.gold}`,
+        borderRadius: "50%",
+        animation: "spin 0.8s linear infinite",
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ─── Category nav pills ───────────────────────────────────────────────
+function CategoryNav({ active, onChange, counts }) {
+  return (
+    <div style={{
+      display: "flex", gap: "0", overflowX: "auto",
+      borderBottom: `1px solid ${COLORS.border}`,
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+    }}>
+      {FILTERS.map(f => {
+        const isActive = active === f;
+        const count = f === "All"
+          ? Object.values(counts).reduce((a, b) => a + b, 0)
+          : counts[f.toLowerCase()] || 0;
+        return (
+          <button key={f} onClick={() => onChange(f)} style={{
+            fontFamily: "'Inter', sans-serif", fontWeight: isActive ? 500 : 300,
+            fontSize: "12px", letterSpacing: "0.08em",
+            color: isActive ? COLORS.text : COLORS.muted,
+            background: "none", border: "none",
+            borderBottom: isActive ? `2px solid ${COLORS.gold}` : "2px solid transparent",
+            padding: "1rem 1.25rem 0.875rem",
+            cursor: "pointer", whiteSpace: "nowrap",
+            transition: "all 0.2s",
+            marginBottom: "-1px",
+          }}>
+            {f}
+            {count > 0 && (
+              <span style={{
+                marginLeft: "6px", fontSize: "10px",
+                color: isActive ? COLORS.gold : COLORS.muted,
+                opacity: 0.7,
+              }}>({count})</span>
+            )}
+          </button>
+        );
+      })}
+      <style>{`::-webkit-scrollbar { display: none; }`}</style>
+    </div>
+  );
+}
+
+// ─── Collage grid ─────────────────────────────────────────────────────
+// Alternates between different layout patterns for visual variety
+function CollageGrid({ items, onSelect }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      {chunkItems(items).map((group, gi) => (
+        <CollageRow key={gi} items={group} onSelect={onSelect} startIndex={
+          chunkItems(items).slice(0, gi).reduce((a, g) => a + g.length, 0)
+        } />
+      ))}
+    </div>
+  );
+}
+
+// Split items into groups of varying sizes for collage effect
+function chunkItems(items) {
+  const groups = [];
+  let i = 0;
+  let rowIndex = 0;
+  while (i < items.length) {
+    const pattern = rowIndex % 4;
+    let size;
+    if (pattern === 0) size = Math.min(3, items.length - i); // 3 equal
+    else if (pattern === 1) size = Math.min(2, items.length - i); // 2 - one tall one wide
+    else if (pattern === 2) size = Math.min(4, items.length - i); // 4 small
+    else size = Math.min(2, items.length - i); // 2 equal
+    groups.push(items.slice(i, i + size));
+    i += size;
+    rowIndex++;
+  }
+  return groups;
+}
+
+function CollageRow({ items, onSelect, startIndex }) {
+  const count = items.length;
+
+  if (count === 1) {
+    return (
+      <div style={{ height: "clamp(280px, 45vw, 560px)" }}>
+        <PhotoTile item={items[0]} index={startIndex} onSelect={onSelect} />
+      </div>
+    );
+  }
+
+  if (count === 2) {
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", height: "clamp(220px, 35vw, 440px)" }}>
+        {items.map((item, i) => (
+          <PhotoTile key={item.id} item={item} index={startIndex + i} onSelect={onSelect} />
+        ))}
+      </div>
+    );
+  }
+
+  if (count === 3) {
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "4px", height: "clamp(200px, 32vw, 400px)" }}>
+        {items.map((item, i) => (
+          <PhotoTile key={item.id} item={item} index={startIndex + i} onSelect={onSelect} />
+        ))}
+      </div>
+    );
+  }
+
+  if (count === 4) {
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "4px", height: "clamp(180px, 28vw, 340px)" }}>
+        {items.map((item, i) => (
+          <PhotoTile key={item.id} item={item} index={startIndex + i} onSelect={onSelect} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px", height: "clamp(180px, 28vw, 340px)" }}>
+      {items.map((item, i) => (
+        <PhotoTile key={item.id} item={item} index={startIndex + i} onSelect={onSelect} />
+      ))}
+    </div>
+  );
+}
+
+function PhotoTile({ item, onSelect }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onClick={() => onSelect(item)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative", overflow: "hidden",
+        cursor: "pointer", background: COLORS.surface,
+        height: "100%",
+      }}
+    >
+      <img
+        src={item.img}
+        alt={item.label}
+        loading="lazy"
+        style={{
+          width: "100%", height: "100%",
+          objectFit: "cover", display: "block",
+          transform: hovered ? "scale(1.04)" : "scale(1)",
+          transition: "transform 0.5s ease",
+        }}
+        onError={e => { e.currentTarget.parentElement.style.display = "none"; }}
+      />
+    </div>
+  );
+}
+
+// ─── Lightbox ─────────────────────────────────────────────────────────
+function Lightbox({ item, items, onClose, onNav }) {
+  const idx = items.findIndex(i => i.id === item.id);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight" && idx < items.length - 1) onNav(items[idx + 1]);
+      if (e.key === "ArrowLeft" && idx > 0) onNav(items[idx - 1]);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [idx, items, onClose, onNav]);
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(10,10,10,0.96)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      {/* Close */}
+      <button onClick={onClose} style={{
+        position: "absolute", top: "1.5rem", right: "1.5rem",
+        background: "none", border: "none", color: "#fff",
+        fontSize: "1.4rem", cursor: "pointer", zIndex: 201,
+        opacity: 0.7,
+      }}>✕</button>
+
+      {/* Prev */}
+      {idx > 0 && (
+        <button onClick={e => { e.stopPropagation(); onNav(items[idx - 1]); }} style={{
+          position: "absolute", left: "1.5rem",
+          background: "none", border: "none", color: "#fff",
+          fontSize: "2.5rem", cursor: "pointer", zIndex: 201, opacity: 0.6,
+        }}>‹</button>
+      )}
+
+      <img
+        src={item.img}
+        alt={item.label}
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: "90vw", maxHeight: "88vh", objectFit: "contain" }}
+      />
+
+      {/* Next */}
+      {idx < items.length - 1 && (
+        <button onClick={e => { e.stopPropagation(); onNav(items[idx + 1]); }} style={{
+          position: "absolute", right: "1.5rem",
+          background: "none", border: "none", color: "#fff",
+          fontSize: "2.5rem", cursor: "pointer", zIndex: 201, opacity: 0.6,
+        }}>›</button>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Work page ───────────────────────────────────────────────────
 export default function Work() {
-  const [items, setItems] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [lightbox, setLightbox] = useState(null);
+  const [counts, setCounts] = useState({});
 
   useEffect(() => {
     async function fetchAll() {
       const folders = Object.keys(FOLDER_CATEGORY_MAP);
       const results = [];
+      const countMap = {};
       let id = 1;
+
       for (const folder of folders) {
-        const { data } = await supabase.storage
+        const { data, error } = await supabase.storage
           .from("Portfolio")
-          .list(`${folder}/originals`, { limit: 200, sortBy: { column: "name", order: "asc" } });
-        if (!data) continue;
+          .list(folder, { limit: 200, sortBy: { column: "name", order: "asc" } });
+
+        if (error || !data) continue;
+
+        const cat = FOLDER_CATEGORY_MAP[folder];
+        let folderCount = 0;
+
         for (const file of data) {
-          if (!file.name?.match(/\.(jpg|jpeg|png|webp)$/i)) continue;
-          if (file.metadata?.size > 15 * 1024 * 1024) continue;
+          if (!file.name?.match(/\.(jpg|jpeg|png|webp|gif)$/i)) continue;
+          if (file.metadata?.size > 20 * 1024 * 1024) continue;
           results.push({
             id: id++,
-            category: FOLDER_CATEGORY_MAP[folder],
-            aspect: ASPECT_MAP[folder],
+            category: cat,
+            folder,
             label: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-            img: `${BASE}/${folder}/originals/${encodeURIComponent(file.name)}`,
+            img: `${BASE}/${folder}/${encodeURIComponent(file.name)}`,
           });
+          folderCount++;
         }
+        countMap[cat] = folderCount;
       }
-      setItems(results);
+
+      setAllItems(results);
+      setCounts(countMap);
       setLoading(false);
     }
     fetchAll();
   }, []);
 
   const filtered = filter === "All"
-    ? items
-    : items.filter(w => w.category === filter.toLowerCase());
-
-  // Lightbox keyboard nav
-  useEffect(() => {
-    if (!lightbox) return;
-    const handler = (e) => {
-      if (e.key === "Escape") setLightbox(null);
-      if (e.key === "ArrowRight") setLightbox(p => filtered[Math.min(p.index + 1, filtered.length - 1)]);
-      if (e.key === "ArrowLeft") setLightbox(p => filtered[Math.max(p.index - 1, 0)]);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [lightbox, filtered]);
+    ? allItems
+    : allItems.filter(w => CATEGORY_LABELS[w.category] === filter);
 
   return (
-    <div style={{ background: COLORS.bg, minHeight: "100vh", paddingTop: "64px" }}>
-      <div style={{ padding: "4rem clamp(1.5rem, 5vw, 4rem)" }}>
-        <Reveal>
-          <Tag>Portfolio</Tag>
-          <h1 style={{
-            fontFamily: "'Playfair Display', serif", fontWeight: 700,
-            fontSize: "clamp(2.5rem, 5vw, 4rem)", color: COLORS.white, margin: "0.75rem 0",
-          }}>Selected Work</h1>
-          <GoldLine mb="2.5rem" />
-        </Reveal>
+    <div style={{ background: COLORS.bg, minHeight: "100vh" }}>
 
-        {/* Filters */}
-        <Reveal delay={0.1}>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "3rem" }}>
-            {FILTERS.map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                fontFamily: "'Inter', sans-serif", fontSize: "10px",
-                letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 400,
-                color: filter === f ? COLORS.bg : COLORS.muted,
-                background: filter === f ? COLORS.gold : "transparent",
-                border: `1px solid ${filter === f ? COLORS.gold : COLORS.border}`,
-                padding: "7px 18px", cursor: "pointer", transition: "all 0.2s",
-              }}>{f}</button>
-            ))}
-          </div>
-        </Reveal>
+      {/* Page header */}
+      <div style={{
+        paddingTop: "88px",
+        padding: "88px clamp(1.5rem, 5vw, 4rem) 0",
+        background: COLORS.bg,
+      }}>
 
+        {/* Category nav */}
+        <CategoryNav
+          active={filter}
+          onChange={setFilter}
+          counts={counts}
+        />
+      </div>
+
+      {/* Grid */}
+      <div style={{ padding: "4px" }}>
         {loading && <Spinner />}
 
         {!loading && filtered.length === 0 && (
           <div style={{
-            textAlign: "center", padding: "4rem 0",
-            fontFamily: "'Inter', sans-serif", fontSize: "0.85rem", color: COLORS.muted,
+            textAlign: "center", padding: "6rem 2rem",
+            fontFamily: "'Inter', sans-serif", fontWeight: 300,
+            fontSize: "0.9rem", color: COLORS.muted,
           }}>No photos in this category yet.</div>
         )}
 
         {!loading && filtered.length > 0 && (
-          <div style={{ columns: "3 240px", columnGap: "10px" }}>
-            {filtered.map((item, i) => (
-              <div key={item.id} onClick={() => setLightbox({ ...item, index: i })} style={{
-                breakInside: "avoid", marginBottom: "10px",
-                aspectRatio: item.aspect, background: "#111",
-                position: "relative", overflow: "hidden", cursor: "pointer",
-              }}
-                onMouseEnter={e => {
-                  e.currentTarget.querySelector(".ov").style.opacity = "1";
-                  e.currentTarget.querySelector(".gi").style.transform = "scale(1.05)";
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.querySelector(".ov").style.opacity = "0";
-                  e.currentTarget.querySelector(".gi").style.transform = "scale(1)";
-                }}
-              >
-                <img className="gi" src={item.img} alt={item.label} loading="lazy"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.5s ease" }}
-                  onError={e => { e.currentTarget.parentElement.style.display = "none"; }}
-                />
-                <div className="ov" style={{
-                  position: "absolute", inset: 0,
-                  background: "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 60%)",
-                  display: "flex", alignItems: "flex-end", padding: "1rem",
-                  opacity: 0, transition: "opacity 0.3s ease",
-                }}>
-                  <div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.95rem", color: COLORS.white, marginBottom: "3px" }}>{item.label}</div>
-                    <Tag>{item.category}</Tag>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <CollageGrid items={filtered} onSelect={setLightbox} />
         )}
       </div>
 
       {/* Lightbox */}
       {lightbox && (
-        <div onClick={() => setLightbox(null)} style={{
-          position: "fixed", inset: 0, zIndex: 200,
-          background: "rgba(0,0,0,0.95)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <button onClick={e => { e.stopPropagation(); setLightbox(null); }} style={{
-            position: "absolute", top: "1.5rem", right: "1.5rem",
-            background: "none", border: "none", color: COLORS.white,
-            fontSize: "1.5rem", cursor: "pointer", zIndex: 201,
-          }}>✕</button>
-          <button onClick={e => { e.stopPropagation(); setLightbox(filtered[Math.max(lightbox.index - 1, 0)]); }} style={{
-            position: "absolute", left: "1.5rem",
-            background: "none", border: "none", color: COLORS.white,
-            fontSize: "2rem", cursor: "pointer", zIndex: 201, opacity: lightbox.index === 0 ? 0.2 : 1,
-          }}>‹</button>
-          <img src={lightbox.img} alt={lightbox.label} onClick={e => e.stopPropagation()}
-            style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain" }}
-          />
-          <button onClick={e => { e.stopPropagation(); setLightbox(filtered[Math.min(lightbox.index + 1, filtered.length - 1)]); }} style={{
-            position: "absolute", right: "1.5rem",
-            background: "none", border: "none", color: COLORS.white,
-            fontSize: "2rem", cursor: "pointer", zIndex: 201, opacity: lightbox.index === filtered.length - 1 ? 0.2 : 1,
-          }}>›</button>
-          <div style={{
-            position: "absolute", bottom: "2rem", left: "50%", transform: "translateX(-50%)",
-            textAlign: "center",
-          }}>
-            <div style={{ fontFamily: "'Playfair Display', serif", color: COLORS.white, fontSize: "1rem", marginBottom: "4px" }}>{lightbox.label}</div>
-            <Tag>{lightbox.category}</Tag>
-          </div>
-        </div>
+        <Lightbox
+          item={lightbox}
+          items={filtered}
+          onClose={() => setLightbox(null)}
+          onNav={setLightbox}
+        />
       )}
 
-      <Footer />
+      <Footer light />
     </div>
   );
 }

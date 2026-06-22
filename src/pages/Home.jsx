@@ -26,9 +26,9 @@ function Hero() {
   const [bg, setBg] = useState(0);
 
   const heroPhotos = [
-    `${BASE}/potraits/originals/EACP1856-Enhanced-NR.jpg`,
-    `${BASE}/engadgements/originals/Des%20Engadgement%20Pictures-114.jpg`,
-    `${BASE}/potraits/originals/EACP1809-Edit.jpg`,
+    `${BASE}/Portraits/EACP1856-Enhanced-NR.jpg`,
+    `${BASE}/Engadgements/Des%20Engadgement%20Pictures-114.jpg`,
+    `${BASE}/Portraits/EACP1809-Edit.jpg`,
   ];
 
   useEffect(() => {
@@ -147,17 +147,17 @@ function FeaturedWork() {
         if (results.length >= 6) break;
         const { data } = await supabase.storage
           .from("Portfolio")
-          .list(`${folder}/originals`, { limit: 3, sortBy: { column: "name", order: "asc" } });
+          .list(folder, { limit: 3, sortBy: { column: "name", order: "asc" } });
         if (!data) continue;
         for (const file of data) {
           if (!file.name?.match(/\.(jpg|jpeg|png|webp)$/i)) continue;
-          if (file.metadata?.size > 15 * 1024 * 1024) continue;
+          if (file.metadata?.size > 20 * 1024 * 1024) continue;
           results.push({
             id: id++,
             category: FOLDER_CATEGORY_MAP[folder],
             aspect: ASPECT_MAP[folder],
             label: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-            img: `${BASE}/${folder}/originals/${encodeURIComponent(file.name)}`,
+            img: `${BASE}/${folder}/${encodeURIComponent(file.name)}`,
           });
           if (results.length >= 6) break;
         }
