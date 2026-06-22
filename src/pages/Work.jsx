@@ -1,9 +1,34 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { COLORS, BASE, FOLDER_CATEGORY_MAP, ASPECT_MAP, CATEGORY_LABELS } from "../lib/constants";
+import { COLORS, BASE, CATEGORY_LABELS } from "../lib/constants";
 import Footer from "../components/Footer";
 
 const FILTERS = ["All", ...Object.values(CATEGORY_LABELS)];
+
+function buildPublicUrl(path) {
+  if (!path) return "";
+  return `${BASE}/${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function mapPortfolioImage(image) {
+  return {
+    id: image.id,
+    category: image.category,
+    label: image.title || image.file_name,
+    img: buildPublicUrl(image.thumbnail_path || image.original_path),
+    fullImg: buildPublicUrl(image.original_path),
+    aspect: image.aspect_ratio || "4 / 5",
+    objectPosition: `${image.object_position_x ?? 50}% ${image.object_position_y ?? 50}%`,
+    zoom: Number(image.zoom || 1),
+  };
+}
+
+function getCategoryCounts(items) {
+  return items.reduce((acc, item) => {
+    acc[item.category] = (acc[item.category] || 0) + 1;
+    return acc;
+  }, {});
+}
 
 // ─── Spinner ──────────────────────────────────────────────────────────
 function Spinner() {
@@ -32,9 +57,10 @@ function CategoryNav({ active, onChange, counts }) {
     }}>
       {FILTERS.map(f => {
         const isActive = active === f;
+        const categoryKey = Object.keys(CATEGORY_LABELS).find(key => CATEGORY_LABELS[key] === f);
         const count = f === "All"
           ? Object.values(counts).reduce((a, b) => a + b, 0)
-          : counts[f.toLowerCase()] || 0;
+          : counts[categoryKey] || 0;
         return (
           <button key={f} onClick={() => onChange(f)} style={{
             fontFamily: "'Inter', sans-serif", fontWeight: isActive ? 500 : 300,
@@ -68,11 +94,13 @@ function CategoryNav({ active, onChange, counts }) {
 function CollageGrid({ items, onSelect }) {
   if (items.length === 0) return null;
 
+  const groups = chunkItems(items);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      {chunkItems(items).map((group, gi) => (
+      {groups.map((group, gi) => (
         <CollageRow key={gi} items={group} onSelect={onSelect} startIndex={
-          chunkItems(items).slice(0, gi).reduce((a, g) => a + g.length, 0)
+          groups.slice(0, gi).reduce((a, g) => a + g.length, 0)
         } />
       ))}
     </div>
@@ -150,6 +178,8 @@ function CollageRow({ items, onSelect, startIndex }) {
 
 function PhotoTile({ item, onSelect }) {
   const [hovered, setHovered] = useState(false);
+  const baseZoom = item.zoom || 1;
+
   return (
     <div
       onClick={() => onSelect(item)}
@@ -167,8 +197,10 @@ function PhotoTile({ item, onSelect }) {
         loading="lazy"
         style={{
           width: "100%", height: "100%",
-          objectFit: "cover", display: "block",
-          transform: hovered ? "scale(1.04)" : "scale(1)",
+          objectFit: "cover",
+          objectPosition: item.objectPosition || "50% 50%",
+          display: "block",
+          transform: hovered ? `scale(${baseZoom * 1.04})` : `scale(${baseZoom})`,
           transition: "transform 0.5s ease",
         }}
         onError={e => { e.currentTarget.parentElement.style.display = "none"; }}
@@ -215,7 +247,7 @@ function Lightbox({ item, items, onClose, onNav }) {
       )}
 
       <img
-        src={item.img}
+        src={item.fullImg || item.img}
         alt={item.label}
         onClick={e => e.stopPropagation()}
         style={{ maxWidth: "90vw", maxHeight: "88vh", objectFit: "contain" }}
@@ -243,38 +275,26 @@ export default function Work() {
 
   useEffect(() => {
     async function fetchAll() {
-      const folders = Object.keys(FOLDER_CATEGORY_MAP);
-      const results = [];
-      const countMap = {};
-      let id = 1;
+      setLoading(true);
 
-      for (const folder of folders) {
-        const { data, error } = await supabase.storage
-          .from("Portfolio")
-          .list(folder, { limit: 200, sortBy: { column: "name", order: "asc" } });
+      const { data, error } = await supabase
+        .from("portfolio_images")
+        .select("*")
+        .eq("is_visible", true)
+        .order("display_order", { ascending: true })
+        .order("created_at", { ascending: false });
 
-        if (error || !data) continue;
-
-        const cat = FOLDER_CATEGORY_MAP[folder];
-        let folderCount = 0;
-
-        for (const file of data) {
-          if (!file.name?.match(/\.(jpg|jpeg|png|webp|gif)$/i)) continue;
-          if (file.metadata?.size > 20 * 1024 * 1024) continue;
-          results.push({
-            id: id++,
-            category: cat,
-            folder,
-            label: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-            img: `${BASE}/${folder}/${encodeURIComponent(file.name)}`,
-          });
-          folderCount++;
-        }
-        countMap[cat] = folderCount;
+      if (error) {
+        console.error("Error loading portfolio images:", error);
+        setAllItems([]);
+        setCounts({});
+        setLoading(false);
+        return;
       }
 
+      const results = (data || []).map(mapPortfolioImage);
       setAllItems(results);
-      setCounts(countMap);
+      setCounts(getCategoryCounts(results));
       setLoading(false);
     }
     fetchAll();
