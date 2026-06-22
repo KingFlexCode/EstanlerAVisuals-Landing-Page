@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { COLORS, BASE, FOLDER_CATEGORY_MAP, ASPECT_MAP } from "../lib/constants";
+import { COLORS, BASE } from "../lib/constants";
 import { GoldLine, Tag, Reveal, Spinner } from "../components/UI";
 import Footer from "../components/Footer";
 
@@ -19,6 +19,24 @@ const testimonials = [
     text: "My EPK shots completely transformed my brand. Every image looks like it belongs in a magazine. Booking again for my next project.",
   },
 ];
+
+function buildPublicUrl(path) {
+  if (!path) return "";
+  return `${BASE}/${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function mapPortfolioRow(image) {
+  return {
+    id: image.id,
+    category: image.category,
+    aspect: image.aspect_ratio || "4 / 5",
+    label: image.title || image.file_name,
+    img: buildPublicUrl(image.thumbnail_path || image.original_path),
+    fullImg: buildPublicUrl(image.original_path),
+    objectPosition: `${image.object_position_x ?? 50}% ${image.object_position_y ?? 50}%`,
+    zoom: Number(image.zoom || 1),
+  };
+}
 
 // ─── Hero ─────────────────────────────────────────────────────────────
 function Hero() {
@@ -133,36 +151,32 @@ function Hero() {
   );
 }
 
-// ─── Featured Work (home preview — first 6 photos) ────────────────────
+// ─── Featured Work (home preview — first 6 featured photos) ─────────────
 function FeaturedWork() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchFeatured() {
-      const folders = Object.keys(FOLDER_CATEGORY_MAP);
-      const results = [];
-      let id = 1;
-      for (const folder of folders) {
-        if (results.length >= 6) break;
-        const { data } = await supabase.storage
-          .from("Portfolio")
-          .list(folder, { limit: 3, sortBy: { column: "name", order: "asc" } });
-        if (!data) continue;
-        for (const file of data) {
-          if (!file.name?.match(/\.(jpg|jpeg|png|webp)$/i)) continue;
-          if (file.metadata?.size > 20 * 1024 * 1024) continue;
-          results.push({
-            id: id++,
-            category: FOLDER_CATEGORY_MAP[folder],
-            aspect: ASPECT_MAP[folder],
-            label: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-            img: `${BASE}/${folder}/${encodeURIComponent(file.name)}`,
-          });
-          if (results.length >= 6) break;
-        }
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from("portfolio_images")
+        .select("*")
+        .eq("is_visible", true)
+        .eq("featured", true)
+        .order("display_order", { ascending: true })
+        .order("created_at", { ascending: false })
+        .limit(6);
+
+      if (error) {
+        console.error("Error loading featured portfolio images:", error);
+        setItems([]);
+        setLoading(false);
+        return;
       }
-      setItems(results);
+
+      setItems((data || []).map(mapPortfolioRow));
       setLoading(false);
     }
     fetchFeatured();
@@ -198,15 +212,23 @@ function FeaturedWork() {
             }}
               onMouseEnter={e => {
                 e.currentTarget.querySelector(".ov").style.opacity = "1";
-                e.currentTarget.querySelector(".gi").style.transform = "scale(1.05)";
+                e.currentTarget.querySelector(".gi").style.transform = `scale(${(item.zoom || 1) * 1.05})`;
               }}
               onMouseLeave={e => {
                 e.currentTarget.querySelector(".ov").style.opacity = "0";
-                e.currentTarget.querySelector(".gi").style.transform = "scale(1)";
+                e.currentTarget.querySelector(".gi").style.transform = `scale(${item.zoom || 1})`;
               }}
             >
               <img className="gi" src={item.img} alt={item.label} loading="lazy"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.5s ease" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: item.objectPosition || "50% 50%",
+                  display: "block",
+                  transition: "transform 0.5s ease",
+                  transform: `scale(${item.zoom || 1})`,
+                }}
                 onError={e => { e.currentTarget.parentElement.style.display = "none"; }}
               />
               <div className="ov" style={{
