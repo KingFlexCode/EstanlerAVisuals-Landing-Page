@@ -92,6 +92,15 @@ function formatDate(value) {
   });
 }
 
+function formatDuration(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (minutes <= 0) return `${remainingSeconds}s`;
+  return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+}
+
 function getFileExtension(fileName = "", fallback = "jpg") {
   return fileName.split(".").pop()?.toLowerCase() || fallback;
 }
@@ -123,6 +132,10 @@ function getCoverUrl(photo) {
 
 function sortByOrder(items) {
   return [...items].sort((a, b) => Number(a.display_order || 0) - Number(b.display_order || 0));
+}
+
+function isFinalUploadStatus(status) {
+  return status === "done" || status === "failed" || status === "skipped";
 }
 
 async function resizeImage(file, maxSize, quality = 0.82) {
@@ -282,6 +295,144 @@ function EmptyState({ children }) {
       }}
     >
       {children}
+    </div>
+  );
+}
+
+function UploadProgressPanel({ queue, uploading, elapsedSeconds }) {
+  if (!queue.length) return null;
+
+  const completedCount = queue.filter((item) => isFinalUploadStatus(item.status)).length;
+  const successfulCount = queue.filter((item) => item.status === "done").length;
+  const failedCount = queue.filter((item) => item.status === "failed").length;
+  const skippedCount = queue.filter((item) => item.status === "skipped").length;
+  const totalProgress = Math.round(
+    queue.reduce((total, item) => total + Number(item.progress || 0), 0) / queue.length,
+  );
+  const activeItem =
+    queue.find((item) => uploading && !isFinalUploadStatus(item.status) && item.status !== "ready") ||
+    null;
+  const estimatedRemainingSeconds =
+    uploading && totalProgress > 5
+      ? Math.max(0, Math.round((elapsedSeconds * (100 - totalProgress)) / totalProgress))
+      : null;
+
+  return (
+    <div
+      style={{
+        border: `1px solid ${COLORS.border}`,
+        background: "rgba(255,255,255,0.025)",
+        padding: "0.85rem",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginBottom: 8 }}>
+        <div>
+          <FieldLabel>Upload Progress</FieldLabel>
+          <div style={{ color: COLORS.white, fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 800 }}>
+            {uploading ? "Uploading gallery photos" : "Upload complete"}
+          </div>
+          {activeItem && (
+            <div style={{ color: COLORS.muted, fontFamily: "'Inter', sans-serif", fontSize: 11, marginTop: 4 }}>
+              Current: {activeItem.name}
+            </div>
+          )}
+        </div>
+        <div style={{ color: COLORS.muted, fontFamily: "'Inter', sans-serif", fontSize: 11, textAlign: "right" }}>
+          <div>{completedCount}/{queue.length}</div>
+          <div>{formatDuration(elapsedSeconds)}</div>
+          {estimatedRemainingSeconds !== null && <div>~{formatDuration(estimatedRemainingSeconds)} left</div>}
+        </div>
+      </div>
+
+      <div
+        style={{
+          height: 8,
+          border: `1px solid ${COLORS.border}`,
+          background: "rgba(255,255,255,0.04)",
+          overflow: "hidden",
+          marginBottom: 8,
+        }}
+      >
+        <div
+          style={{
+            width: `${Math.max(0, Math.min(100, totalProgress))}%`,
+            height: "100%",
+            background: COLORS.gold,
+            transition: "width 0.2s ease",
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 6,
+          color: COLORS.muted,
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 11,
+          marginBottom: 10,
+        }}
+      >
+        <div>Uploaded: {successfulCount}</div>
+        <div>Skipped: {skippedCount}</div>
+        <div>Failed: {failedCount}</div>
+      </div>
+
+      <div style={{ maxHeight: 185, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
+        {queue.map((item, index) => {
+          const statusColor =
+            item.status === "done"
+              ? "#9af0b8"
+              : item.status === "failed"
+                ? "#ff8b8b"
+                : item.status === "skipped"
+                  ? COLORS.muted
+                  : COLORS.gold;
+
+          return (
+            <div
+              key={`${item.name}-${index}`}
+              style={{
+                border: `1px solid ${COLORS.border}`,
+                background: "rgba(0,0,0,0.18)",
+                padding: "7px 8px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span
+                  style={{
+                    color: COLORS.white,
+                    fontFamily: "'Inter', sans-serif",
+                    fontSize: 11,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.name}
+                </span>
+                <span
+                  style={{
+                    color: statusColor,
+                    flexShrink: 0,
+                    fontFamily: "'Inter', sans-serif",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {item.progress}%
+                </span>
+              </div>
+              <div style={{ color: statusColor, fontFamily: "'Inter', sans-serif", fontSize: 10, marginTop: 3 }}>
+                {item.message}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -448,6 +599,9 @@ export default function GalleryEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState([]);
+  const [uploadStartedAt, setUploadStartedAt] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [activeTab, setActiveTab] = useState("photos");
@@ -463,6 +617,16 @@ export default function GalleryEditor() {
   useEffect(() => {
     loadWorkspace();
   }, [galleryId]);
+
+  useEffect(() => {
+    if (!uploading || !uploadStartedAt) return undefined;
+
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - uploadStartedAt) / 1000));
+    }, 500);
+
+    return () => window.clearInterval(timer);
+  }, [uploading, uploadStartedAt]);
 
   async function loadWorkspace() {
     setLoading(true);
@@ -520,6 +684,12 @@ export default function GalleryEditor() {
 
   function setGalleryField(key, value) {
     setGallery((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateQueueItem(index, patch) {
+    setUploadQueue((current) =>
+      current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
+    );
   }
 
   async function saveGallery() {
@@ -628,12 +798,25 @@ export default function GalleryEditor() {
       return;
     }
 
-    setUploading(true);
-    setError("");
-    setNotice(`Uploading ${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"}...`);
-
+    const startedAt = Date.now();
     const existingSectionPhotos = photos.filter((photo) => photo.section_id === sectionId);
     const safeGallerySlug = slugify(gallery.slug || gallery.title || gallery.id);
+    const insertedPhotos = [];
+    let firstCoverId = gallery.cover_image_id || null;
+
+    setUploading(true);
+    setUploadStartedAt(startedAt);
+    setElapsedSeconds(0);
+    setError("");
+    setNotice(`Uploading ${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"}...`);
+    setUploadQueue(
+      selectedFiles.map((file) => ({
+        name: file.name,
+        status: "ready",
+        message: "Ready",
+        progress: 0,
+      })),
+    );
 
     for (const [index, file] of selectedFiles.entries()) {
       const cleanName = sanitizeFileName(file.name);
@@ -645,10 +828,22 @@ export default function GalleryEditor() {
       const thumbnailPath = `${basePath}/thumbnails/${uniqueName}.webp`;
 
       try {
+        updateQueueItem(index, {
+          status: "processing",
+          message: "Creating display + thumbnail",
+          progress: 12,
+        });
+
         const [displayImage, thumbnailImage] = await Promise.all([
           resizeImage(file, 2200, 0.84),
           resizeImage(file, 720, 0.78),
         ]);
+
+        updateQueueItem(index, {
+          status: "uploading",
+          message: "Uploading original",
+          progress: 34,
+        });
 
         const originalUpload = await supabase.storage
           .from(CLIENT_GALLERY_BUCKET)
@@ -660,6 +855,12 @@ export default function GalleryEditor() {
 
         if (originalUpload.error) throw originalUpload.error;
 
+        updateQueueItem(index, {
+          status: "uploading",
+          message: "Uploading display image",
+          progress: 58,
+        });
+
         const displayUpload = await supabase.storage
           .from(CLIENT_GALLERY_BUCKET)
           .upload(displayPath, displayImage.blob, {
@@ -670,6 +871,12 @@ export default function GalleryEditor() {
 
         if (displayUpload.error) throw displayUpload.error;
 
+        updateQueueItem(index, {
+          status: "uploading",
+          message: "Uploading thumbnail",
+          progress: 76,
+        });
+
         const thumbnailUpload = await supabase.storage
           .from(CLIENT_GALLERY_BUCKET)
           .upload(thumbnailPath, thumbnailImage.blob, {
@@ -679,6 +886,12 @@ export default function GalleryEditor() {
           });
 
         if (thumbnailUpload.error) throw thumbnailUpload.error;
+
+        updateQueueItem(index, {
+          status: "saving",
+          message: "Saving gallery photo",
+          progress: 92,
+        });
 
         const title = cleanName.replace(/-/g, " ");
 
@@ -693,7 +906,7 @@ export default function GalleryEditor() {
             original_path: originalPath,
             display_path: displayPath,
             thumbnail_path: thumbnailPath,
-            display_order: existingSectionPhotos.length + index,
+            display_order: existingSectionPhotos.length + insertedPhotos.length,
             original_size_bytes: file.size,
             display_size_bytes: displayImage.size,
             thumbnail_size_bytes: thumbnailImage.size,
@@ -710,19 +923,42 @@ export default function GalleryEditor() {
 
         if (insertError) throw insertError;
 
+        insertedPhotos.push(insertedPhoto);
         setPhotos((current) => sortByOrder([...current, insertedPhoto]));
 
-        if (!gallery.cover_image_id && index === 0) {
+        if (!firstCoverId) {
+          firstCoverId = insertedPhoto.id;
           await setCoverImage(insertedPhoto.id, false);
         }
+
+        updateQueueItem(index, {
+          status: "done",
+          message: "Uploaded",
+          progress: 100,
+        });
       } catch (uploadError) {
         console.error(uploadError);
+        updateQueueItem(index, {
+          status: "failed",
+          message: uploadError.message || "Upload failed",
+          progress: 100,
+        });
         setError(uploadError.message || "One image failed to upload.");
       }
     }
 
+    const finishedElapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    setElapsedSeconds(finishedElapsedSeconds);
+    setUploadStartedAt(null);
     setUploading(false);
-    flash("Gallery photo upload finished.");
+
+    const failedCount = uploadQueue.filter((item) => item.status === "failed").length;
+
+    flash(
+      failedCount > 0
+        ? `Upload finished with ${failedCount} failed image${failedCount === 1 ? "" : "s"}.`
+        : `Done. Uploaded ${insertedPhotos.length} image${insertedPhotos.length === 1 ? "" : "s"}.`,
+    );
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -856,6 +1092,8 @@ export default function GalleryEditor() {
             These photos belong only to this client gallery. They are not portfolio images.
           </p>
         </div>
+
+        <UploadProgressPanel queue={uploadQueue} uploading={uploading} elapsedSeconds={elapsedSeconds} />
 
         <label>
           <FieldLabel>Upload Into Photo Set</FieldLabel>
