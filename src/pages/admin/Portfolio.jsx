@@ -26,8 +26,6 @@ const STORAGE_CATEGORY_MAP = {
 
 const DEFAULT_CATEGORY = "portrait";
 
-<<<<<<< HEAD
-=======
 const ASPECT_RATIO_OPTIONS = [
   ["1 / 1", "Square"],
   ["3 / 4", "Portrait 3:4"],
@@ -35,7 +33,6 @@ const ASPECT_RATIO_OPTIONS = [
   ["16 / 9", "Wide"],
 ];
 
->>>>>>> est-71-client-gallery-core-collection-workspace
 function buildPublicUrl(path) {
   if (!path) return "";
   return `${BASE}/${path.split("/").map(encodeURIComponent).join("/")}`;
@@ -71,8 +68,6 @@ function formatBytes(bytes) {
   return `${mb.toFixed(2)} MB`;
 }
 
-<<<<<<< HEAD
-=======
 function getFileNameFromPath(path, fallback = "download") {
   if (!path) return fallback;
 
@@ -121,7 +116,6 @@ async function downloadStorageFile(path, fileName) {
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
->>>>>>> est-71-client-gallery-core-collection-workspace
 function getStorageFolder(category) {
   return (
     STORAGE_CATEGORY_MAP[category] || STORAGE_CATEGORY_MAP[DEFAULT_CATEGORY]
@@ -145,8 +139,6 @@ function extractGpsValue(value) {
   return null;
 }
 
-<<<<<<< HEAD
-=======
 function sanitizeJsonForPostgres(value, depth = 0) {
   if (depth > 5) return null;
   if (value === null || value === undefined) return null;
@@ -192,7 +184,6 @@ function sanitizeJsonForPostgres(value, depth = 0) {
   return null;
 }
 
->>>>>>> est-71-client-gallery-core-collection-workspace
 function formatDateStamp(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -327,11 +318,7 @@ async function readExif(file) {
       taken_at: exifDateToIso(data.DateTimeOriginal || data.CreateDate),
       gps_latitude: extractGpsValue(data.latitude),
       gps_longitude: extractGpsValue(data.longitude),
-<<<<<<< HEAD
-      exif_raw: data,
-=======
       exif_raw: sanitizeJsonForPostgres(data),
->>>>>>> est-71-client-gallery-core-collection-workspace
     };
   } catch (error) {
     console.warn("Could not read EXIF metadata:", error);
@@ -549,16 +536,6 @@ function MetadataRow({ label, value }) {
   );
 }
 
-<<<<<<< HEAD
-function UploadModal({ open, onClose, onUploaded }) {
-  const [category, setCategory] = useState(DEFAULT_CATEGORY);
-  const [files, setFiles] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadComplete, setUploadComplete] = useState(false);
-  const [status, setStatus] = useState("");
-  const [queue, setQueue] = useState([]);
-
-=======
 function formatDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(totalSeconds || 0));
   const minutes = Math.floor(seconds / 60);
@@ -582,7 +559,6 @@ function UploadModal({ open, onClose, onUploaded }) {
   const [uploadStartedAt, setUploadStartedAt] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
->>>>>>> est-71-client-gallery-core-collection-workspace
   const [renameMode, setRenameMode] = useState("original");
   const [batchBase, setBatchBase] = useState("estanler-visuals");
   const [includeDate, setIncludeDate] = useState(false);
@@ -591,8 +567,6 @@ function UploadModal({ open, onClose, onUploaded }) {
   const [numberPadding, setNumberPadding] = useState(3);
   const [separator, setSeparator] = useState("-");
 
-<<<<<<< HEAD
-=======
   useEffect(() => {
     if (!open) return;
 
@@ -639,7 +613,6 @@ function UploadModal({ open, onClose, onUploaded }) {
         )
       : null;
 
->>>>>>> est-71-client-gallery-core-collection-workspace
   if (!open) return null;
 
   function updateQueueItem(index, patch) {
@@ -670,10 +643,7 @@ function UploadModal({ open, onClose, onUploaded }) {
         name: file.name,
         status: "ready",
         message: "Ready",
-<<<<<<< HEAD
-=======
         progress: 0,
->>>>>>> est-71-client-gallery-core-collection-workspace
       })),
     );
   }
@@ -693,10 +663,7 @@ function UploadModal({ open, onClose, onUploaded }) {
     updateQueueItem(index, {
       status: "hashing",
       message: "Checking duplicate",
-<<<<<<< HEAD
-=======
       progress: 6,
->>>>>>> est-71-client-gallery-core-collection-workspace
     });
     const originalSha256 = await getFileSha256(file);
     const duplicate = await checkDuplicate(originalSha256);
@@ -706,10 +673,7 @@ function UploadModal({ open, onClose, onUploaded }) {
         name: file.name,
         status: "skipped",
         message: `Duplicate skipped: ${duplicate.title || duplicate.file_name}`,
-<<<<<<< HEAD
-=======
         progress: 100,
->>>>>>> est-71-client-gallery-core-collection-workspace
       };
     }
 
@@ -738,10 +702,7 @@ function UploadModal({ open, onClose, onUploaded }) {
       updateQueueItem(index, {
         status: "processing",
         message: "Reading image",
-<<<<<<< HEAD
-=======
         progress: 15,
->>>>>>> est-71-client-gallery-core-collection-workspace
       });
 
       const originalDimensions = await getImageDimensionsFromUrl(originalUrl);
@@ -749,10 +710,7 @@ function UploadModal({ open, onClose, onUploaded }) {
       updateQueueItem(index, {
         status: "processing",
         message: "Creating display + thumbnail",
-<<<<<<< HEAD
-=======
         progress: 28,
->>>>>>> est-71-client-gallery-core-collection-workspace
       });
 
       const [exif, displayImage, thumbnailImage] = await Promise.all([
@@ -764,10 +722,7 @@ function UploadModal({ open, onClose, onUploaded }) {
       updateQueueItem(index, {
         status: "uploading",
         message: "Uploading original",
-<<<<<<< HEAD
-=======
         progress: 42,
->>>>>>> est-71-client-gallery-core-collection-workspace
       });
 
       const originalUpload = await supabase.storage
@@ -783,10 +738,7 @@ function UploadModal({ open, onClose, onUploaded }) {
       updateQueueItem(index, {
         status: "uploading",
         message: "Uploading display",
-<<<<<<< HEAD
-=======
         progress: 60,
->>>>>>> est-71-client-gallery-core-collection-workspace
       });
 
       const displayUpload = await supabase.storage
@@ -802,10 +754,7 @@ function UploadModal({ open, onClose, onUploaded }) {
       updateQueueItem(index, {
         status: "uploading",
         message: "Uploading thumbnail",
-<<<<<<< HEAD
-=======
         progress: 76,
->>>>>>> est-71-client-gallery-core-collection-workspace
       });
 
       const thumbnailUpload = await supabase.storage
@@ -818,15 +767,11 @@ function UploadModal({ open, onClose, onUploaded }) {
 
       if (thumbnailUpload.error) throw thumbnailUpload.error;
 
-<<<<<<< HEAD
-      updateQueueItem(index, { status: "saving", message: "Saving metadata" });
-=======
       updateQueueItem(index, {
         status: "saving",
         message: "Saving metadata",
         progress: 92,
       });
->>>>>>> est-71-client-gallery-core-collection-workspace
 
       const title =
         renameMode === "original"
@@ -870,10 +815,7 @@ function UploadModal({ open, onClose, onUploaded }) {
         name: file.name,
         status: "done",
         message: "Uploaded",
-<<<<<<< HEAD
-=======
         progress: 100,
->>>>>>> est-71-client-gallery-core-collection-workspace
       };
     } finally {
       URL.revokeObjectURL(originalUrl);
@@ -888,15 +830,11 @@ function UploadModal({ open, onClose, onUploaded }) {
       return;
     }
 
-<<<<<<< HEAD
-    setUploading(true);
-=======
     const startedAt = Date.now();
 
     setUploading(true);
     setUploadStartedAt(startedAt);
     setElapsedSeconds(0);
->>>>>>> est-71-client-gallery-core-collection-workspace
     setStatus(
       `Uploading ${files.length} image${files.length === 1 ? "" : "s"}...`,
     );
@@ -904,15 +842,11 @@ function UploadModal({ open, onClose, onUploaded }) {
     const results = [];
 
     for (const [index, file] of files.entries()) {
-<<<<<<< HEAD
-      updateQueueItem(index, { status: "uploading", message: "Starting" });
-=======
       updateQueueItem(index, {
         status: "uploading",
         message: "Starting",
         progress: 2,
       });
->>>>>>> est-71-client-gallery-core-collection-workspace
 
       try {
         const result = await uploadOneFile(file, category, index);
@@ -925,10 +859,7 @@ function UploadModal({ open, onClose, onUploaded }) {
           name: file.name,
           status: "failed",
           message: error.message || "Upload failed",
-<<<<<<< HEAD
-=======
           progress: 100,
->>>>>>> est-71-client-gallery-core-collection-workspace
         };
 
         results.push(failedResult);
@@ -940,15 +871,10 @@ function UploadModal({ open, onClose, onUploaded }) {
     const skipped = results.filter((item) => item.status === "skipped").length;
     const failed = results.filter((item) => item.status === "failed").length;
 
-<<<<<<< HEAD
-    setUploading(false);
-    setUploadComplete(true);
-=======
     setElapsedSeconds(Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
     setUploadStartedAt(null);
     setUploading(false);
     setUploadComplete(failed === 0);
->>>>>>> est-71-client-gallery-core-collection-workspace
     setFiles([]);
 
     if (failed === 0) {
@@ -964,13 +890,9 @@ function UploadModal({ open, onClose, onUploaded }) {
       return;
     }
 
-<<<<<<< HEAD
-    setStatus(`Uploaded ${successful}. Skipped ${skipped}. Failed ${failed}.`);
-=======
     setStatus(
       `Uploaded ${successful}. Skipped ${skipped}. Failed ${failed}. Close and reopen Upload Images to start a fresh upload.`,
     );
->>>>>>> est-71-client-gallery-core-collection-workspace
     await onUploaded();
   }
 
@@ -1065,151 +987,6 @@ function UploadModal({ open, onClose, onUploaded }) {
               </option>
             ))}
           </SelectInput>
-<<<<<<< HEAD
-
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 140,
-              border: `1px dashed ${COLORS.border}`,
-              background: COLORS.surface,
-              color: COLORS.muted,
-              cursor: uploading ? "not-allowed" : "pointer",
-              fontFamily: "var(--font-body)",
-              fontSize: 13,
-              textAlign: "center",
-              padding: "1rem",
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (!uploading) handleFileSelection(event.dataTransfer.files);
-            }}
-          >
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              disabled={uploading}
-              onChange={(event) => handleFileSelection(event.target.files)}
-              style={{ display: "none" }}
-            />
-
-            {files.length
-              ? `${files.length} image${files.length === 1 ? "" : "s"} selected`
-              : "Drop images here or click to choose files"}
-          </label>
-
-          <PanelCard title="Rename Options">
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-              <ToggleButton
-                label="Keep Original Names"
-                checked={renameMode === "original"}
-                onChange={() => setRenameMode("original")}
-              />
-
-              <ToggleButton
-                label="Batch Rename"
-                checked={renameMode === "batch"}
-                onChange={() => setRenameMode("batch")}
-              />
-            </div>
-
-            {renameMode === "batch" && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: "1rem",
-                }}
-              >
-                <TextInput
-                  label="Batch Name"
-                  value={batchBase}
-                  onChange={setBatchBase}
-                />
-
-                <TextInput
-                  label="Starting Number"
-                  type="number"
-                  min={1}
-                  value={startingNumber}
-                  onChange={setStartingNumber}
-                />
-
-                <TextInput
-                  label="Number Padding"
-                  type="number"
-                  min={1}
-                  max={6}
-                  value={numberPadding}
-                  onChange={setNumberPadding}
-                />
-
-                <TextInput
-                  label="Separator"
-                  value={separator}
-                  onChange={setSeparator}
-                />
-
-                <SelectInput
-                  label="Date Position"
-                  value={datePosition}
-                  onChange={setDatePosition}
-                >
-                  <option value="prefix">Date Prefix</option>
-                  <option value="suffix">Date Suffix</option>
-                </SelectInput>
-
-                <div style={{ display: "flex", alignItems: "end" }}>
-                  <ToggleButton
-                    label="Include Date"
-                    checked={includeDate}
-                    onChange={setIncludeDate}
-                  />
-                </div>
-              </div>
-            )}
-          </PanelCard>
-
-          {status && (
-            <div
-              style={{
-                color: COLORS.gold,
-                fontFamily: "var(--font-body)",
-                fontSize: 13,
-              }}
-            >
-              {status}
-            </div>
-          )}
-
-          {queue.length > 0 && (
-            <div style={{ display: "grid", gap: "6px" }}>
-              {queue.map((item) => (
-                <div
-                  key={item.name}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: "1rem",
-                    color:
-                      item.status === "failed" ? COLORS.danger : COLORS.muted,
-                    fontFamily: "var(--font-body)",
-                    fontSize: 12,
-                    borderTop: `1px solid ${COLORS.borderDark}`,
-                    paddingTop: "6px",
-                  }}
-                >
-                  <span>{item.name}</span>
-                  <span>{item.message}</span>
-                </div>
-              ))}
-            </div>
-          )}
-=======
 
           <label
             style={{
@@ -2266,7 +2043,6 @@ function RenameModal({ image, saving, onClose, onSave }) {
               }}
             />
           </label>
->>>>>>> est-71-client-gallery-core-collection-workspace
 
           <div
             style={{
@@ -2280,11 +2056,7 @@ function RenameModal({ image, saving, onClose, onSave }) {
             <button
               type="button"
               onClick={onClose}
-<<<<<<< HEAD
-              disabled={uploading}
-=======
               disabled={saving}
->>>>>>> est-71-client-gallery-core-collection-workspace
               className="btn-secondary"
             >
               Cancel
@@ -2292,27 +2064,6 @@ function RenameModal({ image, saving, onClose, onSave }) {
 
             <button
               type="button"
-<<<<<<< HEAD
-              onClick={startUpload}
-              disabled={uploading || uploadComplete || files.length === 0}
-              className="btn-primary"
-              style={{
-                opacity:
-                  uploading || uploadComplete || files.length === 0 ? 0.65 : 1,
-                cursor:
-                  uploading || uploadComplete || files.length === 0
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-            >
-              {uploading
-                ? "Uploading..."
-                : uploadComplete
-                  ? "Done"
-                  : "Start Upload"}
-            </button>
-          </div>
-=======
               onClick={() => onSave(image, title)}
               disabled={saving}
               className="btn-primary"
@@ -3426,578 +3177,9 @@ function FeaturedArrangerModal({ open, images, onClose, onSaved }) {
           >
             {saving ? "Saving Order..." : "Save Featured Order"}
           </button>
->>>>>>> est-71-client-gallery-core-collection-workspace
         </div>
       </div>
     </div>
-  );
-}
-
-function ControlPanel({ image, onChange, onSave, onDelete, saving, deleting }) {
-  if (!image) {
-    return (
-      <aside
-        className="portfolio-left-panel"
-        style={{
-          position: "sticky",
-          top: "calc(var(--nav-height) + 1rem)",
-          alignSelf: "start",
-          background: COLORS.surfaceDark,
-          border: `1px solid ${COLORS.border}`,
-          padding: "1rem",
-          minHeight: 420,
-        }}
-      >
-        <div
-          style={{
-            color: COLORS.muted,
-            fontFamily: "var(--font-body)",
-            fontSize: 13,
-            lineHeight: 1.7,
-          }}
-        >
-          Select an image to edit settings, crop, visibility, category, and
-          metadata.
-        </div>
-      </aside>
-    );
-  }
-
-  const set = (key, value) => onChange({ ...image, [key]: value });
-
-  const x = image.object_position_x ?? 50;
-  const y = image.object_position_y ?? 15;
-  const zoom = Number(image.zoom || 1);
-  const aspectRatio = image.aspect_ratio || "4 / 5";
-
-  function resetCropControls() {
-    onChange({
-      ...image,
-      object_position_x: 50,
-      object_position_y: 15,
-      zoom: 1,
-    });
-  }
-
-  return (
-    <aside
-      className="portfolio-left-panel"
-      style={{
-        position: "sticky",
-        top: "calc(var(--nav-height) + 1rem)",
-        alignSelf: "start",
-        height: "calc(100vh - var(--nav-height) - 2rem)",
-        overflowY: "auto",
-        background: COLORS.surfaceDark,
-        border: `1px solid ${COLORS.border}`,
-        padding: "1rem",
-      }}
-    >
-      <div style={{ display: "grid", gap: "1rem" }}>
-        <PanelCard title="Crop Controls">
-          <RangeControl
-            label="Zoom"
-            min={1}
-            max={2}
-            step={0.01}
-            value={zoom}
-            displayValue={`${zoom.toFixed(2)}x`}
-            onChange={(value) => set("zoom", value)}
-          />
-
-          <RangeControl
-            label="Position X"
-            min={0}
-            max={100}
-            step={1}
-            value={x}
-            displayValue={`${x}%`}
-            onChange={(value) => set("object_position_x", value)}
-          />
-
-          <RangeControl
-            label="Position Y"
-            min={0}
-            max={100}
-            step={1}
-            value={y}
-            displayValue={`${y}%`}
-            onChange={(value) => set("object_position_y", value)}
-          />
-
-          <div>
-            <FieldLabel>Aspect Ratio</FieldLabel>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "0.5rem",
-              }}
-            >
-              {[
-                ["1 / 1", "Square"],
-                ["3 / 4", "Portrait 3:4"],
-                ["4 / 5", "Portrait 4:5"],
-                ["16 / 9", "Wide"],
-              ].map(([value, label]) => {
-                const active = aspectRatio === value;
-
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => set("aspect_ratio", value)}
-                    style={{
-                      border: `1px solid ${
-                        active ? COLORS.gold : COLORS.border
-                      }`,
-                      background: active ? COLORS.gold : "transparent",
-                      color: active ? COLORS.bgDark : COLORS.muted,
-                      padding: "9px 10px",
-                      cursor: "pointer",
-                      fontFamily: "var(--font-body)",
-                      fontSize: 10,
-                      fontWeight: 800,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={resetCropControls}
-            className="btn-secondary"
-            style={{ width: "100%" }}
-          >
-            Reset Crop
-          </button>
-        </PanelCard>
-
-        <PanelCard title="Image Details">
-          <TextInput
-            label="Title"
-            value={image.title || ""}
-            onChange={(value) => set("title", value)}
-          />
-
-          <TextInput
-            label="Alt Text"
-            value={image.alt_text || ""}
-            onChange={(value) => set("alt_text", value)}
-          />
-
-          <SelectInput
-            label="Category"
-            value={image.category}
-            onChange={(value) => set("category", value)}
-          >
-            {Object.entries(ADMIN_CATEGORY_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </SelectInput>
-
-          <TextInput
-            label="Display Order"
-            type="number"
-            value={image.display_order || 0}
-            onChange={(value) => set("display_order", value)}
-          />
-
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <ToggleButton
-              label="Visible"
-              checked={!!image.is_visible}
-              onChange={(value) => set("is_visible", value)}
-            />
-
-            <ToggleButton
-              label="Featured"
-              checked={!!image.featured}
-              onChange={(value) => set("featured", value)}
-            />
-          </div>
-        </PanelCard>
-
-        <button
-          type="button"
-          onClick={() => onSave(image)}
-          disabled={saving}
-          className="btn-primary"
-          style={{
-            width: "100%",
-            opacity: saving ? 0.7 : 1,
-            cursor: saving ? "not-allowed" : "pointer",
-          }}
-        >
-          {saving ? "Saving..." : "Save Image Settings"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onDelete(image)}
-          disabled={deleting}
-          style={{
-            width: "100%",
-            background: "transparent",
-            color: COLORS.danger,
-            border: `1px solid ${COLORS.danger}`,
-            padding: "13px 18px",
-            cursor: deleting ? "not-allowed" : "pointer",
-            fontFamily: "var(--font-body)",
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            opacity: deleting ? 0.7 : 1,
-          }}
-        >
-          {deleting ? "Deleting..." : "Delete Image"}
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function PreviewPanel({ image }) {
-  if (!image) {
-    return (
-      <aside
-        className="portfolio-preview-panel"
-        style={{
-          position: "sticky",
-          top: "calc(var(--nav-height) + 1rem)",
-          alignSelf: "start",
-          background: COLORS.surfaceDark,
-          border: `1px solid ${COLORS.border}`,
-          padding: "1rem",
-          minHeight: 420,
-        }}
-      >
-        <div
-          style={{
-            color: COLORS.muted,
-            fontFamily: "var(--font-body)",
-            fontSize: 13,
-            lineHeight: 1.7,
-          }}
-        >
-          Select an image to preview crop changes and review camera metadata.
-        </div>
-      </aside>
-    );
-  }
-
-  const previewUrl = getPreviewUrl(image);
-  const x = image.object_position_x ?? 50;
-  const y = image.object_position_y ?? 15;
-  const zoom = Number(image.zoom || 1);
-
-  return (
-    <aside
-      className="portfolio-preview-panel"
-      style={{
-        position: "sticky",
-        top: "calc(var(--nav-height) + 1rem)",
-        alignSelf: "start",
-        height: "calc(100vh - var(--nav-height) - 2rem)",
-        overflowY: "auto",
-        background: COLORS.surfaceDark,
-        border: `1px solid ${COLORS.border}`,
-        padding: "1rem",
-      }}
-    >
-      <div
-        style={{
-          color: COLORS.gold,
-          fontFamily: "var(--font-body)",
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          marginBottom: 6,
-        }}
-      >
-        Live Preview
-      </div>
-
-      <h3
-        style={{
-          color: COLORS.text,
-          fontFamily: "var(--font-heading)",
-          fontSize: "1.1rem",
-          lineHeight: 1.25,
-          margin: "0 0 1rem",
-        }}
-      >
-        {image.title || image.file_name}
-      </h3>
-
-      <div
-        style={{
-          aspectRatio: image.aspect_ratio || "4 / 5",
-          background: COLORS.bg,
-          border: `1px solid ${COLORS.border}`,
-          overflow: "hidden",
-          marginBottom: "0.75rem",
-        }}
-      >
-        <img
-          src={previewUrl}
-          alt={image.alt_text || image.title || image.file_name}
-          decoding="async"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: `${x}% ${y}%`,
-            transform: `scale(${zoom})`,
-            transition: "object-position 0.15s, transform 0.15s",
-          }}
-        />
-      </div>
-
-      <div
-        style={{
-          color: COLORS.muted,
-          fontFamily: "var(--font-body)",
-          fontSize: 11,
-          lineHeight: 1.4,
-          wordBreak: "break-word",
-          marginBottom: "1rem",
-        }}
-      >
-        {image.original_path}
-      </div>
-
-      <PanelCard title="Camera Metadata">
-        <MetadataRow label="Camera" value={image.camera_model} />
-        <MetadataRow label="Make" value={image.camera_make} />
-        <MetadataRow label="Lens" value={image.lens_model} />
-        <MetadataRow label="Focal Length" value={image.focal_length} />
-        <MetadataRow label="Aperture" value={image.aperture} />
-        <MetadataRow label="Shutter" value={image.shutter_speed} />
-        <MetadataRow label="ISO" value={image.iso} />
-        <MetadataRow
-          label="Taken"
-          value={
-            image.taken_at ? new Date(image.taken_at).toLocaleString() : null
-          }
-        />
-        <MetadataRow
-          label="GPS"
-          value={
-            image.gps_latitude && image.gps_longitude
-              ? `${image.gps_latitude}, ${image.gps_longitude}`
-              : null
-          }
-        />
-      </PanelCard>
-
-      <div style={{ height: "1rem" }} />
-
-      <PanelCard title="File Info">
-        <MetadataRow
-          label="Original"
-          value={formatBytes(image.original_size_bytes)}
-        />
-        <MetadataRow
-          label="Display"
-          value={formatBytes(image.display_size_bytes)}
-        />
-        <MetadataRow
-          label="Thumbnail"
-          value={formatBytes(image.thumbnail_size_bytes)}
-        />
-        <MetadataRow label="Mime" value={image.mime_type} />
-        <MetadataRow label="SHA-256" value={image.original_sha256} />
-      </PanelCard>
-    </aside>
-  );
-}
-
-function PortfolioGallery({
-  images,
-  selectedId,
-  onSelect,
-  filter,
-  onFilterChange,
-}) {
-  return (
-    <section
-      style={{
-        background: COLORS.surfaceDark,
-        border: `1px solid ${COLORS.border}`,
-        padding: "1rem",
-        minHeight: 540,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          flexWrap: "wrap",
-          marginBottom: "1rem",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => onFilterChange("all")}
-          style={{
-            border: `1px solid ${
-              filter === "all" ? COLORS.gold : COLORS.border
-            }`,
-            background: filter === "all" ? COLORS.gold : "transparent",
-            color: filter === "all" ? COLORS.bgDark : COLORS.muted,
-            padding: "8px 12px",
-            cursor: "pointer",
-            fontFamily: "var(--font-body)",
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-          }}
-        >
-          All
-        </button>
-
-        {Object.entries(ADMIN_CATEGORY_LABELS).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onFilterChange(key)}
-            style={{
-              border: `1px solid ${
-                filter === key ? COLORS.gold : COLORS.border
-              }`,
-              background: filter === key ? COLORS.gold : "transparent",
-              color: filter === key ? COLORS.bgDark : COLORS.muted,
-              padding: "8px 12px",
-              cursor: "pointer",
-              fontFamily: "var(--font-body)",
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {images.length === 0 ? (
-        <div
-          style={{
-            padding: "4rem 1rem",
-            textAlign: "center",
-            color: COLORS.muted,
-            fontFamily: "var(--font-body)",
-            fontSize: 13,
-            border: `1px dashed ${COLORS.border}`,
-          }}
-        >
-          No images found in this filter.
-        </div>
-      ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))",
-            gap: "10px",
-          }}
-        >
-          {images.map((image) => {
-            const isSelected = image.id === selectedId;
-            const previewUrl = buildPublicUrl(
-              image.thumbnail_path || image.display_path || image.original_path,
-            );
-
-            return (
-              <button
-                key={image.id}
-                type="button"
-                onClick={() => onSelect(image)}
-                style={{
-                  display: "block",
-                  padding: 0,
-                  border: `2px solid ${
-                    isSelected ? COLORS.gold : "transparent"
-                  }`,
-                  background: COLORS.surfaceDark,
-                  cursor: "pointer",
-                  textAlign: "left",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    aspectRatio: "4 / 5",
-                    background: COLORS.surface,
-                    overflow: "hidden",
-                  }}
-                >
-                  <img
-                    src={previewUrl}
-                    alt={image.alt_text || image.title || image.file_name}
-                    loading="lazy"
-                    decoding="async"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: `${image.object_position_x ?? 50}% ${
-                        image.object_position_y ?? 15
-                      }%`,
-                      transform: `scale(${Number(image.zoom || 1)})`,
-                    }}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    padding: "8px",
-                    color: COLORS.muted,
-                    fontFamily: "var(--font-body)",
-                    fontSize: 11,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: COLORS.text,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {image.title || image.file_name}
-                  </div>
-
-                  <div>
-                    {ADMIN_CATEGORY_LABELS[image.category] || image.category}
-                  </div>
-
-                  {image.category === "unlisted" && (
-                    <div style={{ color: COLORS.gold, marginTop: 3 }}>
-                      Admin only
-                    </div>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -4009,10 +3191,6 @@ export default function PortfolioAdmin() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-<<<<<<< HEAD
-  const [status, setStatus] = useState("");
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-=======
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [lastSelectedId, setLastSelectedId] = useState(null);
@@ -4027,20 +3205,16 @@ export default function PortfolioAdmin() {
   const [status, setStatus] = useState("");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [featuredArrangerOpen, setFeaturedArrangerOpen] = useState(false);
->>>>>>> est-71-client-gallery-core-collection-workspace
 
   const filteredImages = useMemo(() => {
     if (filter === "all") return images;
     return images.filter((image) => image.category === filter);
   }, [filter, images]);
-<<<<<<< HEAD
-=======
 
   const selectedImages = useMemo(
     () => images.filter((image) => selectedIds.has(image.id)),
     [images, selectedIds],
   );
->>>>>>> est-71-client-gallery-core-collection-workspace
 
   const fetchImages = useCallback(async () => {
     setLoading(true);
@@ -4080,12 +3254,6 @@ export default function PortfolioAdmin() {
   async function handleSignOut() {
     await supabase.auth.signOut();
     navigate("/admin/login");
-<<<<<<< HEAD
-  }
-
-  function handleSelect(image) {
-    setSelectedImage(image);
-=======
   }
 
   function selectImageRange(imageId) {
@@ -4393,7 +3561,6 @@ export default function PortfolioAdmin() {
       `Updated aspect ratio for ${imagesToUpdate.length} image${imagesToUpdate.length === 1 ? "" : "s"}.`,
     );
     await fetchImages();
->>>>>>> est-71-client-gallery-core-collection-workspace
   }
 
   function handleLocalChange(nextImage) {
@@ -4438,42 +3605,6 @@ export default function PortfolioAdmin() {
     await fetchImages();
   }
 
-<<<<<<< HEAD
-  async function deleteImage(image) {
-    const confirmed = window.confirm(
-      "Delete this image permanently? This removes the original, display image, thumbnail, and metadata row.",
-    );
-
-    if (!confirmed) return;
-
-    setDeletingId(image.id);
-    setStatus("");
-
-    const paths = [
-      image.original_path,
-      image.display_path,
-      image.thumbnail_path,
-    ].filter(Boolean);
-
-    try {
-      if (paths.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from(PORTFOLIO_BUCKET)
-          .remove(paths);
-
-        if (storageError) throw storageError;
-      }
-
-      const { error: deleteError } = await supabase
-        .from("portfolio_images")
-        .delete()
-        .eq("id", image.id);
-
-      if (deleteError) throw deleteError;
-
-      setStatus(`Deleted ${image.title || image.file_name}.`);
-      setSelectedImage(null);
-=======
   function chunkArray(items, size = 80) {
     const chunks = [];
 
@@ -4566,16 +3697,12 @@ export default function PortfolioAdmin() {
       }
 
       setDeleteTargetImages([]);
->>>>>>> est-71-client-gallery-core-collection-workspace
       await fetchImages();
     } catch (error) {
       console.error(error);
       setStatus(`Delete error: ${error.message}`);
     } finally {
-<<<<<<< HEAD
-=======
       setBulkDeleting(false);
->>>>>>> est-71-client-gallery-core-collection-workspace
       setDeletingId(null);
     }
   }
@@ -4590,8 +3717,6 @@ export default function PortfolioAdmin() {
         onUploaded={fetchImages}
       />
 
-<<<<<<< HEAD
-=======
       <FeaturedArrangerModal
         open={featuredArrangerOpen}
         images={images.filter(
@@ -4654,7 +3779,6 @@ export default function PortfolioAdmin() {
         onConfirm={confirmDeleteImages}
       />
 
->>>>>>> est-71-client-gallery-core-collection-workspace
       <main style={{ padding: "2rem var(--page-x)" }}>
         <div
           style={{
@@ -4705,8 +3829,6 @@ export default function PortfolioAdmin() {
 
             <button
               type="button"
-<<<<<<< HEAD
-=======
               onClick={() => setFeaturedArrangerOpen(true)}
               className="btn-secondary"
             >
@@ -4715,7 +3837,6 @@ export default function PortfolioAdmin() {
 
             <button
               type="button"
->>>>>>> est-71-client-gallery-core-collection-workspace
               onClick={fetchImages}
               className="btn-secondary"
             >
@@ -4764,11 +3885,6 @@ export default function PortfolioAdmin() {
             <PortfolioGallery
               images={filteredImages}
               selectedId={selectedImage?.id}
-<<<<<<< HEAD
-              onSelect={handleSelect}
-              filter={filter}
-              onFilterChange={setFilter}
-=======
               selectedIds={selectedIds}
               onSelect={handleSelect}
               onToggleSelected={toggleSelectedImage}
@@ -4779,7 +3895,6 @@ export default function PortfolioAdmin() {
               filter={filter}
               onFilterChange={setFilter}
               bulkDeleting={bulkDeleting}
->>>>>>> est-71-client-gallery-core-collection-workspace
             />
 
             <PreviewPanel image={selectedImage} />

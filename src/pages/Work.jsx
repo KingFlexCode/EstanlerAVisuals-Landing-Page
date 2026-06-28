@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-import { BASE, CATEGORY_LABELS, COLORS } from "../lib/constants";
-=======
 import { useEffect, useMemo, useState } from "react";
->>>>>>> est-71-client-gallery-core-collection-workspace
 import Footer from "../components/Footer";
 import { BASE, CATEGORY_LABELS, COLORS } from "../lib/constants";
 import { supabase } from "../lib/supabase";
@@ -18,20 +12,6 @@ function buildPublicUrl(path) {
 
 function mapPortfolioImage(image) {
   const gridPath =
-<<<<<<< HEAD
-    image.thumbnail_path || image.display_path || image.original_path;
-
-  const lightboxPath =
-    image.display_path || image.original_path || image.thumbnail_path;
-
-  return {
-    id: image.id,
-    category: image.category,
-    label: image.title || image.file_name,
-    img: buildPublicUrl(gridPath),
-    fullImg: buildPublicUrl(lightboxPath),
-    originalImg: buildPublicUrl(image.original_path),
-=======
     image.display_path || image.original_path || image.thumbnail_path;
 
   const lightboxPath =
@@ -43,7 +23,6 @@ function mapPortfolioImage(image) {
     label: image.title || image.file_name || "Portfolio image",
     img: buildPublicUrl(gridPath),
     fullImg: buildPublicUrl(lightboxPath),
->>>>>>> est-71-client-gallery-core-collection-workspace
     aspect: image.aspect_ratio || "4 / 5",
     objectPosition: `${image.object_position_x ?? 50}% ${
       image.object_position_y ?? 15
@@ -114,15 +93,9 @@ function CategoryNav({ active, onChange, counts }) {
             onClick={() => onChange(filter)}
             style={{
               fontFamily: "var(--font-body)",
-<<<<<<< HEAD
-              fontWeight: isActive ? 700 : 400,
-              fontSize: "12px",
-              letterSpacing: "0.08em",
-=======
               fontWeight: isActive ? 700 : 500,
               fontSize: 12,
               letterSpacing: "0.12em",
->>>>>>> est-71-client-gallery-core-collection-workspace
               color: isActive ? COLORS.text : COLORS.muted,
               background: isActive ? COLORS.surfaceDark : "transparent",
               border: "none",
@@ -134,11 +107,7 @@ function CategoryNav({ active, onChange, counts }) {
               padding: "1rem 1.25rem 0.875rem",
               cursor: "pointer",
               whiteSpace: "nowrap",
-<<<<<<< HEAD
-              transition: "all var(--transition-fast)",
-=======
               transition: "all 0.2s ease",
->>>>>>> est-71-client-gallery-core-collection-workspace
               marginBottom: "-1px",
               textTransform: "uppercase",
             }}
@@ -150,11 +119,7 @@ function CategoryNav({ active, onChange, counts }) {
                   marginLeft: 6,
                   fontSize: 10,
                   color: isActive ? COLORS.gold : COLORS.muted,
-<<<<<<< HEAD
-                  opacity: 0.72,
-=======
                   opacity: 0.85,
->>>>>>> est-71-client-gallery-core-collection-workspace
                 }}
               >
                 ({count})
@@ -169,137 +134,9 @@ function CategoryNav({ active, onChange, counts }) {
   );
 }
 
-<<<<<<< HEAD
-function chunkItems(items) {
-  const groups = [];
-  let index = 0;
-  let rowIndex = 0;
-
-  while (index < items.length) {
-    const pattern = rowIndex % 4;
-    let size;
-
-    if (pattern === 0) {
-      size = Math.min(3, items.length - index);
-    } else if (pattern === 1) {
-      size = Math.min(2, items.length - index);
-    } else if (pattern === 2) {
-      size = Math.min(4, items.length - index);
-    } else {
-      size = Math.min(2, items.length - index);
-    }
-
-    groups.push(items.slice(index, index + size));
-    index += size;
-    rowIndex += 1;
-  }
-
-  return groups;
-}
-
-function CollageGrid({ items, onSelect }) {
-  if (items.length === 0) return null;
-
-  const groups = chunkItems(items);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      {groups.map((group, groupIndex) => (
-        <CollageRow
-          key={`${groupIndex}-${group.map((item) => item.id).join("-")}`}
-          items={group}
-          onSelect={onSelect}
-          startIndex={groups
-            .slice(0, groupIndex)
-            .reduce((total, row) => total + row.length, 0)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function CollageRow({ items, onSelect, startIndex }) {
-  const count = items.length;
-
-  if (count === 1) {
-    return (
-      <div style={{ height: "clamp(280px, 45vw, 560px)" }}>
-        <PhotoTile item={items[0]} index={startIndex} onSelect={onSelect} />
-      </div>
-    );
-  }
-
-  if (count === 2) {
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "4px",
-          height: "clamp(220px, 35vw, 440px)",
-        }}
-      >
-        {items.map((item, index) => (
-          <PhotoTile
-            key={item.id}
-            item={item}
-            index={startIndex + index}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (count === 3) {
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr 1fr",
-          gap: "4px",
-          height: "clamp(200px, 32vw, 400px)",
-        }}
-      >
-        {items.map((item, index) => (
-          <PhotoTile
-            key={item.id}
-            item={item}
-            index={startIndex + index}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (count === 4) {
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "4px",
-          height: "clamp(180px, 28vw, 340px)",
-        }}
-      >
-        {items.map((item, index) => (
-          <PhotoTile
-            key={item.id}
-            item={item}
-            index={startIndex + index}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
-    );
-  }
-
-=======
 function MasonryGrid({ items, onSelect }) {
   if (items.length === 0) return null;
 
->>>>>>> est-71-client-gallery-core-collection-workspace
   return (
     <div
       style={{
@@ -307,18 +144,8 @@ function MasonryGrid({ items, onSelect }) {
         columnGap: 6,
       }}
     >
-<<<<<<< HEAD
-      {items.map((item, index) => (
-        <PhotoTile
-          key={item.id}
-          item={item}
-          index={startIndex + index}
-          onSelect={onSelect}
-        />
-=======
       {items.map((item) => (
         <PhotoTile key={item.id} item={item} onSelect={onSelect} />
->>>>>>> est-71-client-gallery-core-collection-workspace
       ))}
     </div>
   );
@@ -330,10 +157,7 @@ function PhotoTile({ item, onSelect }) {
   return (
     <button
       type="button"
-<<<<<<< HEAD
-=======
       aria-label={`Open ${item.label || "portfolio image"}`}
->>>>>>> est-71-client-gallery-core-collection-workspace
       onClick={() => onSelect(item)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -346,13 +170,6 @@ function PhotoTile({ item, onSelect }) {
         padding: 0,
         border: "none",
         background: COLORS.surface,
-<<<<<<< HEAD
-        height: "100%",
-        border: "none",
-        padding: 0,
-        display: "block",
-        width: "100%",
-=======
         cursor: "pointer",
         overflow: "hidden",
         textAlign: "left",
@@ -361,7 +178,6 @@ function PhotoTile({ item, onSelect }) {
         zIndex: hovered ? 2 : 1,
         transition:
           "transform 0.28s ease, box-shadow 0.28s ease, filter 0.28s ease",
->>>>>>> est-71-client-gallery-core-collection-workspace
       }}
     >
       <img
@@ -371,13 +187,7 @@ function PhotoTile({ item, onSelect }) {
         decoding="async"
         style={{
           width: "100%",
-<<<<<<< HEAD
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: item.objectPosition || "50% 15%",
-=======
           height: "auto",
->>>>>>> est-71-client-gallery-core-collection-workspace
           display: "block",
           filter: hovered ? "brightness(1.06) contrast(1.03)" : "none",
           transition: "filter 0.28s ease",
@@ -386,8 +196,6 @@ function PhotoTile({ item, onSelect }) {
           event.currentTarget.parentElement.style.display = "none";
         }}
       />
-<<<<<<< HEAD
-=======
 
       <span
         aria-hidden="true"
@@ -405,7 +213,6 @@ function PhotoTile({ item, onSelect }) {
           pointerEvents: "none",
         }}
       />
->>>>>>> est-71-client-gallery-core-collection-workspace
     </button>
   );
 }
@@ -416,24 +223,17 @@ function Lightbox({ item, items, onClose, onNav }) {
   useEffect(() => {
     const handler = (event) => {
       if (event.key === "Escape") onClose();
-<<<<<<< HEAD
-      if (event.key === "ArrowRight" && index < items.length - 1) {
-        onNav(items[index + 1]);
-      }
-=======
 
       if (event.key === "ArrowRight" && index < items.length - 1) {
         onNav(items[index + 1]);
       }
 
->>>>>>> est-71-client-gallery-core-collection-workspace
       if (event.key === "ArrowLeft" && index > 0) {
         onNav(items[index - 1]);
       }
     };
 
     window.addEventListener("keydown", handler);
-
     return () => window.removeEventListener("keydown", handler);
   }, [index, items, onClose, onNav]);
 
@@ -444,7 +244,7 @@ function Lightbox({ item, items, onClose, onNav }) {
         position: "fixed",
         inset: 0,
         zIndex: 200,
-        background: "rgba(17, 26, 36, 0.97)",
+        background: "rgba(10,10,10,0.96)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -454,22 +254,10 @@ function Lightbox({ item, items, onClose, onNav }) {
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close image preview"
         style={{
           position: "absolute",
           top: "1.5rem",
           right: "1.5rem",
-<<<<<<< HEAD
-          background: "transparent",
-          border: `1px solid ${COLORS.border}`,
-          color: COLORS.text,
-          fontSize: "1.1rem",
-          cursor: "pointer",
-          zIndex: 201,
-          opacity: 0.9,
-          width: "42px",
-          height: "42px",
-=======
           background: "rgba(0,0,0,0.25)",
           border: `1px solid ${COLORS.border}`,
           color: COLORS.text,
@@ -477,7 +265,6 @@ function Lightbox({ item, items, onClose, onNav }) {
           cursor: "pointer",
           zIndex: 201,
           padding: "0.75rem 1rem",
->>>>>>> est-71-client-gallery-core-collection-workspace
         }}
       >
         ✕
@@ -490,19 +277,9 @@ function Lightbox({ item, items, onClose, onNav }) {
             event.stopPropagation();
             onNav(items[index - 1]);
           }}
-          aria-label="Previous image"
           style={{
             position: "absolute",
             left: "1.5rem",
-<<<<<<< HEAD
-            background: "transparent",
-            border: "none",
-            color: COLORS.text,
-            fontSize: "2.75rem",
-            cursor: "pointer",
-            zIndex: 201,
-            opacity: 0.7,
-=======
             background: "rgba(0,0,0,0.25)",
             border: `1px solid ${COLORS.border}`,
             color: COLORS.text,
@@ -510,7 +287,6 @@ function Lightbox({ item, items, onClose, onNav }) {
             cursor: "pointer",
             zIndex: 201,
             padding: "0.75rem 1rem",
->>>>>>> est-71-client-gallery-core-collection-workspace
           }}
         >
           ‹
@@ -520,21 +296,11 @@ function Lightbox({ item, items, onClose, onNav }) {
       <img
         src={item.fullImg || item.img}
         alt={item.label}
-<<<<<<< HEAD
-        decoding="async"
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          maxWidth: "90vw",
-          maxHeight: "88vh",
-          objectFit: "contain",
-          border: `1px solid ${COLORS.borderDark}`,
-=======
         onClick={(event) => event.stopPropagation()}
         style={{
           maxWidth: "92vw",
           maxHeight: "88vh",
           objectFit: "contain",
->>>>>>> est-71-client-gallery-core-collection-workspace
           background: COLORS.bg,
         }}
       />
@@ -546,19 +312,9 @@ function Lightbox({ item, items, onClose, onNav }) {
             event.stopPropagation();
             onNav(items[index + 1]);
           }}
-          aria-label="Next image"
           style={{
             position: "absolute",
             right: "1.5rem",
-<<<<<<< HEAD
-            background: "transparent",
-            border: "none",
-            color: COLORS.text,
-            fontSize: "2.75rem",
-            cursor: "pointer",
-            zIndex: 201,
-            opacity: 0.7,
-=======
             background: "rgba(0,0,0,0.25)",
             border: `1px solid ${COLORS.border}`,
             color: COLORS.text,
@@ -566,7 +322,6 @@ function Lightbox({ item, items, onClose, onNav }) {
             cursor: "pointer",
             zIndex: 201,
             padding: "0.75rem 1rem",
->>>>>>> est-71-client-gallery-core-collection-workspace
           }}
         >
           ›
@@ -614,36 +369,25 @@ export default function Work() {
     fetchAll();
   }, []);
 
-<<<<<<< HEAD
-  const filtered =
-    filter === "All"
-      ? allItems
-      : allItems.filter((item) => CATEGORY_LABELS[item.category] === filter);
-=======
   const filtered = useMemo(() => {
     if (filter === "All") return allItems;
 
     return allItems.filter((item) => CATEGORY_LABELS[item.category] === filter);
   }, [allItems, filter]);
->>>>>>> est-71-client-gallery-core-collection-workspace
 
   return (
     <div style={{ background: COLORS.bg, minHeight: "100vh" }}>
       <div
         style={{
           paddingTop: "88px",
-          padding: "88px var(--page-x) 0",
+          padding: "88px clamp(1.5rem, 5vw, 4rem) 0",
           background: COLORS.bg,
         }}
       >
         <CategoryNav active={filter} onChange={setFilter} counts={counts} />
       </div>
 
-<<<<<<< HEAD
-      <div style={{ padding: "4px" }}>
-=======
       <div style={{ padding: 6 }}>
->>>>>>> est-71-client-gallery-core-collection-workspace
         {loading && <Spinner />}
 
         {!loading && filtered.length === 0 && (

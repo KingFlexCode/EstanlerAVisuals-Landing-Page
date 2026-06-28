@@ -47,19 +47,11 @@ function buildPublicUrl(path) {
 
 function mapPortfolioRow(image) {
   const gridPath =
-<<<<<<< HEAD
-    image.thumbnail_path || image.display_path || image.original_path;
-
-  const previewPath =
-    image.display_path || image.original_path || image.thumbnail_path;
-
-=======
     image.display_path || image.original_path || image.thumbnail_path;
 
   const previewPath =
     image.original_path || image.display_path || image.thumbnail_path;
 
->>>>>>> est-71-client-gallery-core-collection-workspace
   return {
     id: image.id,
     category: image.category,
@@ -318,10 +310,7 @@ function FeaturedWork() {
         .eq("is_visible", true)
         .eq("featured", true)
         .neq("category", "unlisted")
-<<<<<<< HEAD
-=======
         .order("featured_order", { ascending: true, nullsFirst: false })
->>>>>>> est-71-client-gallery-core-collection-workspace
         .order("display_order", { ascending: true })
         .order("created_at", { ascending: false });
 
@@ -449,10 +438,7 @@ function FeaturedWork() {
                 alt={item.label}
                 loading="lazy"
                 decoding="async"
-<<<<<<< HEAD
-=======
                 draggable={false}
->>>>>>> est-71-client-gallery-core-collection-workspace
                 style={{
                   width: "100%",
                   height: "100%",
