@@ -26,7 +26,7 @@ function mapPortfolioImage(image) {
     originalImg: buildPublicUrl(image.original_path),
     aspect: image.aspect_ratio || "4 / 5",
     objectPosition: `${image.object_position_x ?? 50}% ${
-      image.object_position_y ?? 50
+      image.object_position_y ?? 15
     }%`,
     zoom: Number(image.zoom || 1),
   };
@@ -308,7 +308,7 @@ function PhotoTile({ item, onSelect }) {
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          objectPosition: item.objectPosition || "50% 50%",
+          objectPosition: item.objectPosition || "50% 15%",
           display: "block",
           transform: hovered
             ? `scale(${baseZoom * 1.04})`

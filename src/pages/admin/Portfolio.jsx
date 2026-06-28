@@ -618,7 +618,7 @@ function UploadModal({ open, onClose, onUploaded }) {
           alt_text: title,
           aspect_ratio: selectedCategory === "landscape" ? "16 / 9" : "4 / 5",
           object_position_x: 50,
-          object_position_y: 50,
+          object_position_y: 15,
           zoom: 1,
           featured: false,
           is_visible: selectedCategory !== "unlisted",
@@ -1022,7 +1022,7 @@ function ControlPanel({ image, onChange, onSave, onDelete, saving, deleting }) {
   const set = (key, value) => onChange({ ...image, [key]: value });
 
   const x = image.object_position_x ?? 50;
-  const y = image.object_position_y ?? 50;
+  const y = image.object_position_y ?? 15;
   const zoom = Number(image.zoom || 1);
   const aspectRatio = image.aspect_ratio || "4 / 5";
 
@@ -1030,7 +1030,7 @@ function ControlPanel({ image, onChange, onSave, onDelete, saving, deleting }) {
     onChange({
       ...image,
       object_position_x: 50,
-      object_position_y: 50,
+      object_position_y: 15,
       zoom: 1,
     });
   }
@@ -1254,7 +1254,7 @@ function PreviewPanel({ image }) {
 
   const previewUrl = getPreviewUrl(image);
   const x = image.object_position_x ?? 50;
-  const y = image.object_position_y ?? 50;
+  const y = image.object_position_y ?? 15;
   const zoom = Number(image.zoom || 1);
 
   return (
@@ -1511,7 +1511,7 @@ function PortfolioGallery({
                       height: "100%",
                       objectFit: "cover",
                       objectPosition: `${image.object_position_x ?? 50}% ${
-                        image.object_position_y ?? 50
+                        image.object_position_y ?? 15
                       }%`,
                       transform: `scale(${Number(image.zoom || 1)})`,
                     }}
@@ -1636,7 +1636,7 @@ export default function PortfolioAdmin() {
       alt_text: image.alt_text,
       aspect_ratio: image.aspect_ratio,
       object_position_x: image.object_position_x ?? 50,
-      object_position_y: image.object_position_y ?? 50,
+      object_position_y: image.object_position_y ?? 15,
       zoom: Number(image.zoom || 1),
       featured: !!image.featured,
       is_visible: image.category === "unlisted" ? false : !!image.is_visible,

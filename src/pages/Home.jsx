@@ -52,7 +52,7 @@ function mapPortfolioRow(image) {
     img: buildPublicUrl(gridPath),
     fullImg: buildPublicUrl(previewPath),
     objectPosition: `${image.object_position_x ?? 50}% ${
-      image.object_position_y ?? 50
+      image.object_position_y ?? 15
     }%`,
     zoom: Number(image.zoom || 1),
   };
@@ -377,7 +377,7 @@ function FeaturedWork() {
                   width: "100%",
                   height: "100%",
                   objectFit: "cover",
-                  objectPosition: item.objectPosition || "50% 50%",
+                  objectPosition: item.objectPosition || "50% 15%",
                   display: "block",
                   transition: "transform 0.5s ease",
                   transform: `scale(${item.zoom || 1})`,
