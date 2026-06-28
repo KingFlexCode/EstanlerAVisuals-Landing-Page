@@ -38,13 +38,19 @@ function buildPublicUrl(path) {
 }
 
 function mapPortfolioRow(image) {
+  const gridPath =
+    image.thumbnail_path || image.display_path || image.original_path;
+
+  const previewPath =
+    image.display_path || image.original_path || image.thumbnail_path;
+
   return {
     id: image.id,
     category: image.category,
     aspect: image.aspect_ratio || "4 / 5",
     label: image.title || image.file_name,
-    img: buildPublicUrl(image.thumbnail_path || image.original_path),
-    fullImg: buildPublicUrl(image.original_path),
+    img: buildPublicUrl(gridPath),
+    fullImg: buildPublicUrl(previewPath),
     objectPosition: `${image.object_position_x ?? 50}% ${
       image.object_position_y ?? 50
     }%`,
@@ -58,7 +64,6 @@ function Hero() {
 
   useEffect(() => {
     const timer = setTimeout(() => setLoaded(true), 120);
-
     return () => clearTimeout(timer);
   }, []);
 
@@ -255,6 +260,7 @@ function FeaturedWork() {
         .select("*")
         .eq("is_visible", true)
         .eq("featured", true)
+        .neq("category", "unlisted")
         .order("display_order", { ascending: true })
         .order("created_at", { ascending: false })
         .limit(6);
@@ -366,6 +372,7 @@ function FeaturedWork() {
                 src={item.img}
                 alt={item.label}
                 loading="lazy"
+                decoding="async"
                 style={{
                   width: "100%",
                   height: "100%",
