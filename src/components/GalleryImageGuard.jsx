@@ -107,7 +107,7 @@ function styleWatermark(overlay, config, image, parent) {
 
   Object.assign(overlay.style, {
     position: "absolute",
-    zIndex: "2147483000",
+    zIndex: lightbox ? "2" : "1",
     pointerEvents: "none",
     overflow: "hidden",
     boxSizing: "border-box",
@@ -121,8 +121,8 @@ function styleWatermark(overlay, config, image, parent) {
       backgroundImage: `url("${watermarkUrl}")`,
       backgroundRepeat: "repeat",
       backgroundPosition: "center",
-      backgroundSize: strong ? "clamp(96px, 18%, 190px) auto" : "clamp(116px, 22%, 230px) auto",
-      opacity: strong ? "0.36" : "0.2",
+      backgroundSize: strong ? "150px auto" : "190px auto",
+      opacity: strong ? "0.4" : "0.24",
       filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.3))",
     });
     return;
