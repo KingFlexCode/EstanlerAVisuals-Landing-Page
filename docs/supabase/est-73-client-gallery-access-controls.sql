@@ -5,7 +5,9 @@
 -- Password hashes stay server-side and are never returned to the browser.
 -- This script is safe to rerun while testing EST-73.
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+set search_path = public, extensions;
 
 alter table public.client_galleries
   add column if not exists access_mode text not null default 'public',
@@ -47,7 +49,7 @@ create or replace function public.get_client_gallery_public_payload(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   gallery_record public.client_galleries%rowtype;
@@ -130,7 +132,7 @@ create or replace function public.set_client_gallery_password(
 returns public.client_galleries
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   updated_gallery public.client_galleries;
