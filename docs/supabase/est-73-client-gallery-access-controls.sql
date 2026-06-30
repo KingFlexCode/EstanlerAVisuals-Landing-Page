@@ -15,11 +15,19 @@ alter table public.client_galleries
   add column if not exists expires_at timestamptz,
   add column if not exists allow_downloads boolean not null default true,
   add column if not exists allow_favorites boolean not null default true,
-  add column if not exists allow_sharing boolean not null default true,
-  add column if not exists watermark_mode text not null default 'off',
-  add column if not exists watermark_layout text not null default 'fit',
-  add column if not exists watermark_file_path text,
-  add column if not exists watermark_text text;
+  add column if not exists allow_sharing boolean not null default true;
+
+alter table public.client_galleries
+  drop constraint if exists client_galleries_watermark_mode_check;
+
+alter table public.client_galleries
+  drop constraint if exists client_galleries_watermark_layout_check;
+
+alter table public.client_galleries
+  drop column if exists watermark_mode,
+  drop column if exists watermark_layout,
+  drop column if exists watermark_file_path,
+  drop column if exists watermark_text;
 
 alter table public.client_galleries
   drop constraint if exists client_galleries_access_mode_check;
@@ -28,20 +36,6 @@ alter table public.client_galleries
   add constraint client_galleries_access_mode_check
   check (access_mode in ('public', 'password', 'hidden'));
 
-alter table public.client_galleries
-  drop constraint if exists client_galleries_watermark_mode_check;
-
-alter table public.client_galleries
-  add constraint client_galleries_watermark_mode_check
-  check (watermark_mode in ('off', 'subtle', 'strong'));
-
-alter table public.client_galleries
-  drop constraint if exists client_galleries_watermark_layout_check;
-
-alter table public.client_galleries
-  add constraint client_galleries_watermark_layout_check
-  check (watermark_layout in ('fit', 'tile'));
-
 update public.client_galleries
 set access_mode = 'public'
 where access_mode is null;
@@ -49,14 +43,6 @@ where access_mode is null;
 update public.client_galleries
 set access_password_hash = null
 where access_mode <> 'password';
-
-update public.client_galleries
-set watermark_mode = 'off'
-where watermark_mode is null;
-
-update public.client_galleries
-set watermark_layout = 'fit'
-where watermark_layout is null;
 
 create index if not exists client_galleries_access_mode_idx
   on public.client_galleries(access_mode);
