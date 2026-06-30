@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Nav from "./components/Nav";
 import ProtectedRoute from "./components/ProtectedRoute";
+import GalleryImageGuard from "./components/GalleryImageGuard";
 
 import Home from "./pages/Home";
 import Work from "./pages/Work";
@@ -59,6 +60,7 @@ function Layout() {
     <>
       <FontLoader />
       <ScrollToTop />
+      <GalleryImageGuard />
 
       {showNav && <Nav />}
 
