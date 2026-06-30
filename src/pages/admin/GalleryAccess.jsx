@@ -50,6 +50,41 @@ function ToggleRow({ title, description, checked, onChange }) {
   );
 }
 
+function PasswordInput({ value, onChange, visible, onToggle }) {
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type={visible ? "text" : "password"}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Enter new gallery password"
+        style={{ ...inputStyle, paddingRight: 52 }}
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        title={visible ? "Hide password" : "Show password"}
+        aria-label={visible ? "Hide password" : "Show password"}
+        style={{
+          position: "absolute",
+          right: 8,
+          top: "50%",
+          transform: "translateY(-50%)",
+          background: "transparent",
+          border: "none",
+          color: COLORS.gold,
+          cursor: "pointer",
+          fontSize: 17,
+          height: 32,
+          width: 32,
+        }}
+      >
+        {visible ? "◉" : "◌"}
+      </button>
+    </div>
+  );
+}
+
 function formatLocalDateTime(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -64,6 +99,7 @@ export default function GalleryAccess() {
   const navigate = useNavigate();
   const [gallery, setGallery] = useState(null);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -148,6 +184,7 @@ export default function GalleryAccess() {
       }
       nextGallery = passwordData;
       setPassword("");
+      setShowPassword(false);
     }
 
     if (accessMode !== "password") {
@@ -177,6 +214,7 @@ export default function GalleryAccess() {
     }
     setGallery(data);
     setPassword("");
+    setShowPassword(false);
     setNotice("Gallery password cleared.");
   }
 
@@ -233,12 +271,12 @@ export default function GalleryAccess() {
               <h2 style={{ fontFamily: shellFont, fontSize: 16, margin: "0 0 1rem" }}>Password</h2>
               <label>
                 <FieldLabel>Set or Replace Password</FieldLabel>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter new gallery password" style={inputStyle} />
+                <PasswordInput value={password} onChange={setPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} />
               </label>
               <div style={{ display: "flex", gap: 8, marginTop: "0.85rem" }}>
                 <button type="button" onClick={clearPassword} disabled={saving} style={{ ...buttonStyle, color: "#ffb4b4", borderColor: "rgba(255,180,180,0.45)" }}>Clear Password</button>
               </div>
-              <p style={{ color: COLORS.muted, fontFamily: shellFont, fontSize: 12, lineHeight: 1.7, margin: "0.85rem 0 0" }}>The password is hashed in Supabase. The app does not save the plain password.</p>
+              <p style={{ color: COLORS.muted, fontFamily: shellFont, fontSize: 12, lineHeight: 1.7, margin: "0.85rem 0 0" }}>The password is hashed in Supabase. The app does not save the plain password. The eye button only reveals what you are currently typing.</p>
             </div>}
 
             <div style={{ border: `1px solid ${COLORS.border}`, background: "rgba(255,255,255,0.025)", padding: "1rem" }}>
