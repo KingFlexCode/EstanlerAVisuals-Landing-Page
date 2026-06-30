@@ -31,6 +31,7 @@ const buttonStyle = {
   textTransform: "uppercase",
 };
 const primaryButtonStyle = { ...buttonStyle, background: COLORS.gold, border: "none", color: COLORS.bg };
+const passwordMask = "••••••••••";
 
 function FieldLabel({ children }) {
   return <span style={{ display: "block", marginBottom: 6, color: COLORS.muted, fontFamily: shellFont, fontSize: 10, fontWeight: 800, letterSpacing: "0.13em", textTransform: "uppercase" }}>{children}</span>;
@@ -50,15 +51,28 @@ function ToggleRow({ title, description, checked, onChange }) {
   );
 }
 
-function PasswordInput({ value, onChange, visible, onToggle }) {
+function PasswordInput({ value, onChange, visible, onToggle, hasExistingPassword }) {
+  const showingExisting = hasExistingPassword && !value;
+  const displayValue = showingExisting ? (visible ? "Password is active" : passwordMask) : value;
+
   return (
     <div style={{ position: "relative" }}>
       <input
-        type={visible ? "text" : "password"}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Enter new gallery password"
-        style={{ ...inputStyle, paddingRight: 52 }}
+        type={visible || showingExisting ? "text" : "password"}
+        value={displayValue}
+        onFocus={(event) => {
+          if (showingExisting) event.currentTarget.select();
+        }}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          if (showingExisting) {
+            onChange(nextValue.replace(passwordMask, "").replace("Password is active", ""));
+            return;
+          }
+          onChange(nextValue);
+        }}
+        placeholder={hasExistingPassword ? "Enter a new password to replace the current one" : "Enter new gallery password"}
+        style={{ ...inputStyle, paddingRight: 52, color: showingExisting && visible ? COLORS.muted : COLORS.white }}
       />
       <button
         type="button"
@@ -233,6 +247,7 @@ export default function GalleryAccess() {
   }
 
   const publicUrl = gallery.slug ? `${window.location.origin}/gallery/${gallery.slug}` : "Save the gallery slug first.";
+  const hasExistingPassword = Boolean(gallery.access_password_hash);
 
   return (
     <div style={pageStyle}>
@@ -270,13 +285,14 @@ export default function GalleryAccess() {
             {gallery.access_mode === "password" && <div style={{ border: `1px solid ${COLORS.border}`, background: "rgba(255,255,255,0.025)", padding: "1rem" }}>
               <h2 style={{ fontFamily: shellFont, fontSize: 16, margin: "0 0 1rem" }}>Password</h2>
               <label>
-                <FieldLabel>Set or Replace Password</FieldLabel>
-                <PasswordInput value={password} onChange={setPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} />
+                <FieldLabel>{hasExistingPassword ? "Password Set" : "Set Password"}</FieldLabel>
+                <PasswordInput value={password} onChange={setPassword} visible={showPassword} onToggle={() => setShowPassword((visible) => !visible)} hasExistingPassword={hasExistingPassword} />
               </label>
-              <div style={{ display: "flex", gap: 8, marginTop: "0.85rem" }}>
-                <button type="button" onClick={clearPassword} disabled={saving} style={{ ...buttonStyle, color: "#ffb4b4", borderColor: "rgba(255,180,180,0.45)" }}>Clear Password</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "0.85rem", flexWrap: "wrap" }}>
+                <button type="button" onClick={clearPassword} disabled={saving || !hasExistingPassword} style={{ ...buttonStyle, color: "#ffb4b4", borderColor: "rgba(255,180,180,0.45)", opacity: saving || !hasExistingPassword ? 0.55 : 1 }}>Clear Password</button>
+                {hasExistingPassword && <span style={{ color: COLORS.gold, fontFamily: shellFont, fontSize: 12 }}>A password is currently active.</span>}
               </div>
-              <p style={{ color: COLORS.muted, fontFamily: shellFont, fontSize: 12, lineHeight: 1.7, margin: "0.85rem 0 0" }}>The password is hashed in Supabase. The app does not save the plain password. The eye button only reveals what you are currently typing.</p>
+              <p style={{ color: COLORS.muted, fontFamily: shellFont, fontSize: 12, lineHeight: 1.7, margin: "0.85rem 0 0" }}>The password is hashed in Supabase. The field shows a masked active-password state. Type a new password here to replace it.</p>
             </div>}
 
             <div style={{ border: `1px solid ${COLORS.border}`, background: "rgba(255,255,255,0.025)", padding: "1rem" }}>
@@ -303,6 +319,7 @@ export default function GalleryAccess() {
             <div style={{ display: "grid", gap: 10, color: COLORS.muted, fontFamily: shellFont, fontSize: 13, lineHeight: 1.6 }}>
               <div><strong style={{ color: COLORS.white }}>Status:</strong> {gallery.status}</div>
               <div><strong style={{ color: COLORS.white }}>Access:</strong> {gallery.access_mode || "public"}</div>
+              <div><strong style={{ color: COLORS.white }}>Password:</strong> {hasExistingPassword ? "Set" : "Not set"}</div>
               <div><strong style={{ color: COLORS.white }}>Expires:</strong> {gallery.expires_at ? new Date(gallery.expires_at).toLocaleString() : "No expiration"}</div>
               <div><strong style={{ color: COLORS.white }}>Downloads:</strong> {gallery.allow_downloads !== false ? "On" : "Off"}</div>
               <div><strong style={{ color: COLORS.white }}>Favorites:</strong> {gallery.allow_favorites !== false ? "On" : "Off"}</div>
