@@ -27,6 +27,17 @@ export async function loadGalleryFavorites(galleryId, visitorId = getGalleryVisi
   return new Set((data || []).map((row) => row.image_id));
 }
 
+export async function saveGalleryFavorite(galleryId, imageId, visitorId = getGalleryVisitorId()) {
+  if (!galleryId || !imageId || !visitorId) return;
+  const { error } = await supabase
+    .from(FAVORITES_TABLE)
+    .upsert(
+      { gallery_id: galleryId, image_id: imageId, visitor_id: visitorId },
+      { onConflict: "gallery_id,image_id,visitor_id" },
+    );
+  if (error) throw error;
+}
+
 export function emptyFavoriteSet() {
   return new Set();
 }
