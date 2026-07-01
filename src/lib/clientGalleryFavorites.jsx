@@ -5,6 +5,8 @@ export const FAVORITES_TABLE = "client_gallery_favorites";
 export const VISITOR_KEY = "client-gallery-visitor-id";
 export const FAVORITES_STORAGE_PREFIX = "client-gallery-favorites:";
 const CLIENT_GALLERY_BUCKET = "client-galleries";
+const ADMIN_FAVORITES_PANEL_ID = "est81-admin-client-favorites-panel";
+const ADMIN_TAB_TITLES = new Set(["Photos", "Design", "Settings", "Activity"]);
 
 export function createGalleryVisitorId() {
   return `visitor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -180,17 +182,50 @@ async function loadAdminFavoriteRows(galleryId) {
     .sort((a, b) => Number(a.image.display_order || 0) - Number(b.image.display_order || 0));
 }
 
+function removeAdminFavoritePanel() {
+  document.getElementById(ADMIN_FAVORITES_PANEL_ID)?.remove();
+}
+
+function galleryTabButtons() {
+  return [...document.querySelectorAll("button[title]")].filter((button) => ADMIN_TAB_TITLES.has(button.title));
+}
+
+function isActivityTabActive() {
+  const tabs = galleryTabButtons();
+  const activityButton = tabs.find((button) => button.title === "Activity");
+  if (!activityButton || tabs.length < 2) return false;
+
+  const activityColor = window.getComputedStyle(activityButton).color;
+  const sameColorCount = tabs.filter((button) => window.getComputedStyle(button).color === activityColor).length;
+  return sameColorCount === 1;
+}
+
+function activeSidebarPanelContainer() {
+  const activityButton = galleryTabButtons().find((button) => button.title === "Activity");
+  const aside = activityButton?.closest("aside");
+  if (!aside) return null;
+  const containers = [...aside.querySelectorAll("div")];
+  return containers.find((container) => {
+    const style = window.getComputedStyle(container);
+    return style.overflowY === "auto" && style.overflowX === "hidden";
+  }) || null;
+}
+
 function buildAdminFavoritesPanel(rows) {
   const totalSelections = rows.reduce((total, row) => total + Number(row.favorite_count || 0), 0);
   const panel = document.createElement("section");
-  panel.id = "est74-admin-favorites-panel";
+  panel.id = ADMIN_FAVORITES_PANEL_ID;
   panel.style.cssText = "background:#fff;border:1px solid #e5e5e5;color:#111;margin:0 0 1.25rem;padding:1rem;font-family:'Inter',sans-serif;";
+
+  const kicker = document.createElement("div");
+  kicker.textContent = "Client Favorite Selections";
+  kicker.style.cssText = "color:#777;font-size:10px;font-weight:900;letter-spacing:.14em;margin:0 0 .35rem;text-transform:uppercase;";
 
   const header = document.createElement("div");
   header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;";
 
   const title = document.createElement("div");
-  title.innerHTML = `<strong>${rows.length}</strong> favorited photo${rows.length === 1 ? "" : "s"} · <strong>${totalSelections}</strong> total selection${totalSelections === 1 ? "" : "s"}`;
+  title.innerHTML = `<strong>${rows.length}</strong> selected photo${rows.length === 1 ? "" : "s"} · <strong>${totalSelections}</strong> total favorite click${totalSelections === 1 ? "" : "s"}`;
   title.style.cssText = "font-size:12px;color:#555;";
 
   const actions = document.createElement("div");
@@ -221,14 +256,16 @@ function buildAdminFavoritesPanel(rows) {
 
   actions.append(zipButton, copyButton, refreshButton);
   header.append(title, actions);
-  panel.append(header);
+  panel.append(kicker, header);
+
+  const helper = document.createElement("p");
+  helper.textContent = rows.length
+    ? "These are the photos the client selected as favorites. Click a filename to download one image, or use the ZIP button for the full selection."
+    : "No client favorites have been saved for this gallery yet.";
+  helper.style.cssText = "color:#777;font-size:12px;line-height:1.5;margin:.8rem 0 0;";
+  panel.append(helper);
 
   if (rows.length) {
-    const helper = document.createElement("p");
-    helper.textContent = "Click a filename to download that one selected image, or use the ZIP button for the full client selection.";
-    helper.style.cssText = "color:#777;font-size:12px;line-height:1.5;margin:.8rem 0 0;";
-    panel.append(helper);
-
     const list = document.createElement("div");
     list.style.cssText = "display:grid;gap:6px;margin-top:.85rem;max-height:240px;overflow:auto;";
     rows.forEach((row) => {
@@ -257,11 +294,6 @@ function buildAdminFavoritesPanel(rows) {
       list.append(item);
     });
     panel.append(list);
-  } else {
-    const empty = document.createElement("p");
-    empty.textContent = "No client favorites have been saved for this gallery yet.";
-    empty.style.cssText = "color:#777;font-size:12px;margin:.85rem 0 0;";
-    panel.append(empty);
   }
 
   return panel;
@@ -269,23 +301,45 @@ function buildAdminFavoritesPanel(rows) {
 
 async function renderAdminFavoritePanel(force = false) {
   const galleryId = adminGalleryId();
-  const main = document.querySelector("main");
-  if (!galleryId || !main) return;
-  const existing = document.getElementById("est74-admin-favorites-panel");
+  const target = activeSidebarPanelContainer();
+  if (!galleryId || !target || !isActivityTabActive()) {
+    removeAdminFavoritePanel();
+    return;
+  }
+
+  const existing = document.getElementById(ADMIN_FAVORITES_PANEL_ID);
   if (existing && !force) return;
   if (existing) existing.remove();
+
   try {
     const rows = await loadAdminFavoriteRows(galleryId);
-    main.prepend(buildAdminFavoritesPanel(rows));
+    if (!isActivityTabActive()) return;
+    target.prepend(buildAdminFavoritesPanel(rows));
   } catch {
     // Keep the gallery workspace stable if favorites are not ready yet.
   }
 }
 
+function syncAdminFavoritePanel(force = false) {
+  if (!adminGalleryId() || !isActivityTabActive()) {
+    removeAdminFavoritePanel();
+    return;
+  }
+  renderAdminFavoritePanel(force);
+}
+
 function installAdminFavoritePanel() {
-  if (typeof window === "undefined" || window.__est74AdminFavoritesInstalled) return;
-  window.__est74AdminFavoritesInstalled = true;
-  window.setInterval(() => renderAdminFavoritePanel(false), 2400);
+  if (typeof window === "undefined" || window.__est81AdminFavoritesInstalled) return;
+  window.__est81AdminFavoritesInstalled = true;
+
+  document.addEventListener("click", (event) => {
+    const tabButton = event.target?.closest?.("button[title]");
+    if (!tabButton || !ADMIN_TAB_TITLES.has(tabButton.title)) return;
+    if (tabButton.title !== "Activity") removeAdminFavoritePanel();
+    window.setTimeout(() => syncAdminFavoritePanel(tabButton.title === "Activity"), 90);
+  });
+
+  window.setInterval(() => syncAdminFavoritePanel(false), 700);
 }
 
 export function installGalleryFavoriteSync() {
