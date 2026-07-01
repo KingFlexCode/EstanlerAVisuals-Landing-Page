@@ -38,6 +38,18 @@ function getCategoryCounts(items) {
   }, {});
 }
 
+function getFilterCount(filter, counts) {
+  if (filter === "All") {
+    return Object.values(counts).reduce((total, value) => total + value, 0);
+  }
+
+  const categoryKey = Object.keys(CATEGORY_LABELS).find(
+    (key) => CATEGORY_LABELS[key] === filter,
+  );
+
+  return counts[categoryKey] || 0;
+}
+
 function Spinner() {
   return (
     <div
@@ -64,73 +76,194 @@ function Spinner() {
 }
 
 function CategoryNav({ active, onChange, counts }) {
+  const activeCount = getFilterCount(active, counts);
+
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 0,
-        overflowX: "auto",
-        borderBottom: `1px solid ${COLORS.border}`,
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-      }}
-    >
-      {FILTERS.map((filter) => {
-        const isActive = active === filter;
-        const categoryKey = Object.keys(CATEGORY_LABELS).find(
-          (key) => CATEGORY_LABELS[key] === filter,
-        );
+    <section className="work-category-shell" aria-label="Portfolio categories">
+      <div className="work-category-meta">
+        <span>Browse Work</span>
+        <span>
+          {active} · {activeCount} photo{activeCount === 1 ? "" : "s"}
+        </span>
+      </div>
 
-        const count =
-          filter === "All"
-            ? Object.values(counts).reduce((total, value) => total + value, 0)
-            : counts[categoryKey] || 0;
+      <div className="work-category-track" role="tablist" aria-label="Filter work by category">
+        {FILTERS.map((filter) => {
+          const isActive = active === filter;
+          const count = getFilterCount(filter, counts);
 
-        return (
-          <button
-            key={filter}
-            type="button"
-            onClick={() => onChange(filter)}
-            style={{
-              fontFamily: "var(--font-body)",
-              fontWeight: isActive ? 700 : 500,
-              fontSize: 12,
-              letterSpacing: "0.12em",
-              color: isActive ? COLORS.text : COLORS.muted,
-              background: isActive ? COLORS.surfaceDark : "transparent",
-              border: "none",
-              borderLeft: isActive ? `1px solid ${COLORS.gold}` : "none",
-              borderRight: isActive ? `1px solid ${COLORS.gold}` : "none",
-              borderBottom: isActive
-                ? `2px solid ${COLORS.gold}`
-                : "2px solid transparent",
-              padding: "1rem 1.25rem 0.875rem",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              transition: "all 0.2s ease",
-              marginBottom: "-1px",
-              textTransform: "uppercase",
-            }}
-          >
-            {filter}
-            {count > 0 && (
-              <span
-                style={{
-                  marginLeft: 6,
-                  fontSize: 10,
-                  color: isActive ? COLORS.gold : COLORS.muted,
-                  opacity: 0.85,
-                }}
-              >
-                ({count})
-              </span>
-            )}
-          </button>
-        );
-      })}
+          return (
+            <button
+              key={filter}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-current={isActive ? "page" : undefined}
+              onClick={() => onChange(filter)}
+              className={`work-category-chip${isActive ? " is-active" : ""}`}
+            >
+              <span className="work-category-label">{filter}</span>
+              {count > 0 && <span className="work-category-count">{count}</span>}
+            </button>
+          );
+        })}
+      </div>
 
-      <style>{`::-webkit-scrollbar { display: none; }`}</style>
-    </div>
+      <style>{`
+        .work-category-shell {
+          border: 1px solid ${COLORS.border};
+          border-left: none;
+          border-right: none;
+          background:
+            linear-gradient(90deg, rgba(255,255,255,0.025), rgba(255,255,255,0.055), rgba(255,255,255,0.025)),
+            ${COLORS.bg};
+          box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+          padding: 0.85rem 0;
+          position: relative;
+        }
+
+        .work-category-shell::before,
+        .work-category-shell::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: clamp(1rem, 3vw, 2rem);
+          pointer-events: none;
+          z-index: 2;
+        }
+
+        .work-category-shell::before {
+          left: 0;
+          background: linear-gradient(90deg, ${COLORS.bg}, transparent);
+        }
+
+        .work-category-shell::after {
+          right: 0;
+          background: linear-gradient(270deg, ${COLORS.bg}, transparent);
+        }
+
+        .work-category-meta {
+          align-items: center;
+          color: ${COLORS.muted};
+          display: flex;
+          font-family: var(--font-body);
+          font-size: 10px;
+          font-weight: 800;
+          justify-content: space-between;
+          letter-spacing: 0.14em;
+          padding: 0 clamp(1rem, 2.4vw, 1.35rem) 0.65rem;
+          text-transform: uppercase;
+        }
+
+        .work-category-track {
+          display: flex;
+          gap: 0.55rem;
+          overflow-x: auto;
+          padding: 0 clamp(1rem, 2.4vw, 1.35rem) 0.15rem;
+          scroll-padding-inline: 1rem;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          position: relative;
+          z-index: 1;
+        }
+
+        .work-category-track::-webkit-scrollbar {
+          display: none;
+        }
+
+        .work-category-chip {
+          align-items: center;
+          background: rgba(255, 255, 255, 0.025);
+          border: 1px solid rgba(255, 255, 255, 0.075);
+          color: ${COLORS.muted};
+          cursor: pointer;
+          display: inline-flex;
+          flex: 0 0 auto;
+          font-family: var(--font-body);
+          font-size: 11px;
+          font-weight: 800;
+          gap: 0.48rem;
+          justify-content: center;
+          letter-spacing: 0.13em;
+          min-height: 44px;
+          padding: 0.78rem 1rem;
+          position: relative;
+          text-transform: uppercase;
+          transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+          white-space: nowrap;
+        }
+
+        .work-category-chip::after {
+          background: ${COLORS.gold};
+          bottom: -1px;
+          content: "";
+          height: 2px;
+          left: 1rem;
+          opacity: 0;
+          position: absolute;
+          right: 1rem;
+          transform: scaleX(0.35);
+          transition: opacity 0.22s ease, transform 0.22s ease;
+        }
+
+        .work-category-chip:hover {
+          background: rgba(255, 255, 255, 0.065);
+          border-color: rgba(255, 255, 255, 0.16);
+          color: ${COLORS.text};
+          transform: translateY(-1px);
+        }
+
+        .work-category-chip:focus-visible {
+          outline: 2px solid ${COLORS.gold};
+          outline-offset: 3px;
+        }
+
+        .work-category-chip.is-active {
+          background:
+            linear-gradient(135deg, rgba(255, 180, 96, 0.16), rgba(255, 255, 255, 0.055)),
+            ${COLORS.surfaceDark};
+          border-color: ${COLORS.gold};
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26), inset 0 0 0 1px rgba(255,255,255,0.035);
+          color: ${COLORS.text};
+        }
+
+        .work-category-chip.is-active::after {
+          opacity: 1;
+          transform: scaleX(1);
+        }
+
+        .work-category-count {
+          color: ${COLORS.muted};
+          font-size: 10px;
+          letter-spacing: 0.06em;
+          opacity: 0.86;
+        }
+
+        .work-category-chip.is-active .work-category-count {
+          color: ${COLORS.gold};
+        }
+
+        @media (max-width: 720px) {
+          .work-category-shell {
+            margin-left: -0.75rem;
+            margin-right: -0.75rem;
+          }
+
+          .work-category-meta {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.35rem;
+          }
+
+          .work-category-chip {
+            font-size: 10px;
+            min-height: 41px;
+            padding: 0.72rem 0.86rem;
+          }
+        }
+      `}</style>
+    </section>
   );
 }
 
@@ -380,7 +513,7 @@ export default function Work() {
       <div
         style={{
           paddingTop: "88px",
-          padding: "88px clamp(1.5rem, 5vw, 4rem) 0",
+          padding: "96px clamp(1rem, 4vw, 3.5rem) 0",
           background: COLORS.bg,
         }}
       >
