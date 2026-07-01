@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 
 export const FAVORITES_TABLE = "client_gallery_favorites";
 export const VISITOR_KEY = "client-gallery-visitor-id";
+export const FAVORITES_STORAGE_PREFIX = "client-gallery-favorites:";
 
 export function createGalleryVisitorId() {
   return `visitor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -56,6 +57,38 @@ export async function loadGalleryFavoriteSummary(galleryId) {
     .eq("gallery_id", galleryId);
   if (error) throw error;
   return data || [];
+}
+
+function parseFavoriteIds(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function syncFavoriteIds(galleryId, previousIds, nextIds) {
+  const visitorId = getGalleryVisitorId();
+  const previous = new Set(previousIds);
+  const next = new Set(nextIds);
+  await Promise.all([...next].map((imageId) => saveGalleryFavorite(galleryId, imageId, visitorId)));
+  await Promise.all([...previous].filter((imageId) => !next.has(imageId)).map((imageId) => removeGalleryFavorite(galleryId, imageId, visitorId)));
+}
+
+export function installGalleryFavoriteSync() {
+  if (typeof window === "undefined" || window.__galleryFavoriteSyncInstalled) return;
+  window.__galleryFavoriteSyncInstalled = true;
+
+  const nativeSetItem = window.localStorage.setItem.bind(window.localStorage);
+  window.localStorage.setItem = (key, value) => {
+    const normalizedKey = String(key);
+    const previousValue = normalizedKey.startsWith(FAVORITES_STORAGE_PREFIX) ? window.localStorage.getItem(normalizedKey) : null;
+    nativeSetItem(key, value);
+    if (!normalizedKey.startsWith(FAVORITES_STORAGE_PREFIX)) return;
+    const galleryId = normalizedKey.slice(FAVORITES_STORAGE_PREFIX.length);
+    syncFavoriteIds(galleryId, parseFavoriteIds(previousValue), parseFavoriteIds(value)).catch(() => undefined);
+  };
 }
 
 export function emptyFavoriteSet() {
