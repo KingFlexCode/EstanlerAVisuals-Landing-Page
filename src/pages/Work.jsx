@@ -111,36 +111,17 @@ function CategoryNav({ active, onChange, counts }) {
 
       <style>{`
         .work-category-shell {
-          border: 1px solid ${COLORS.border};
-          border-left: none;
-          border-right: none;
-          background:
-            linear-gradient(90deg, rgba(255,255,255,0.025), rgba(255,255,255,0.055), rgba(255,255,255,0.025)),
-            ${COLORS.bg};
-          box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
-          padding: 0.85rem 0;
+          background: transparent;
+          border: none;
+          box-shadow: none;
+          padding: 0;
           position: relative;
+          width: 100%;
         }
 
         .work-category-shell::before,
         .work-category-shell::after {
-          content: "";
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: clamp(1rem, 3vw, 2rem);
-          pointer-events: none;
-          z-index: 2;
-        }
-
-        .work-category-shell::before {
-          left: 0;
-          background: linear-gradient(90deg, ${COLORS.bg}, transparent);
-        }
-
-        .work-category-shell::after {
-          right: 0;
-          background: linear-gradient(270deg, ${COLORS.bg}, transparent);
+          display: none;
         }
 
         .work-category-meta {
@@ -148,20 +129,21 @@ function CategoryNav({ active, onChange, counts }) {
           color: ${COLORS.muted};
           display: flex;
           font-family: var(--font-body);
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 800;
           justify-content: space-between;
-          letter-spacing: 0.14em;
-          padding: 0 clamp(1rem, 2.4vw, 1.35rem) 0.65rem;
+          letter-spacing: 0.13em;
+          padding: 0 0 0.5rem;
           text-transform: uppercase;
         }
 
         .work-category-track {
           display: flex;
-          gap: 0.55rem;
+          gap: 0.42rem;
+          justify-content: flex-start;
           overflow-x: auto;
-          padding: 0 clamp(1rem, 2.4vw, 1.35rem) 0.15rem;
-          scroll-padding-inline: 1rem;
+          padding: 0 0 0.08rem;
+          scroll-padding-inline: 0;
           scrollbar-width: none;
           -ms-overflow-style: none;
           position: relative;
@@ -174,42 +156,42 @@ function CategoryNav({ active, onChange, counts }) {
 
         .work-category-chip {
           align-items: center;
-          background: rgba(255, 255, 255, 0.025);
-          border: 1px solid rgba(255, 255, 255, 0.075);
+          background: rgba(255, 255, 255, 0.018);
+          border: 1px solid rgba(255, 255, 255, 0.07);
           color: ${COLORS.muted};
           cursor: pointer;
           display: inline-flex;
           flex: 0 0 auto;
           font-family: var(--font-body);
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 800;
-          gap: 0.48rem;
+          gap: 0.36rem;
           justify-content: center;
-          letter-spacing: 0.13em;
-          min-height: 44px;
-          padding: 0.78rem 1rem;
+          letter-spacing: 0.12em;
+          min-height: 37px;
+          padding: 0.6rem 0.78rem;
           position: relative;
           text-transform: uppercase;
-          transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+          transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
           white-space: nowrap;
         }
 
         .work-category-chip::after {
           background: ${COLORS.gold};
-          bottom: 5px;
+          bottom: 4px;
           content: "";
-          height: 2px;
-          left: 1rem;
+          height: 1px;
+          left: 0.75rem;
           opacity: 0;
           position: absolute;
-          right: 1rem;
-          transform: scaleX(0.35);
-          transition: opacity 0.22s ease, transform 0.22s ease;
+          right: 0.75rem;
+          transform: scaleX(0.45);
+          transition: opacity 0.2s ease, transform 0.2s ease;
         }
 
         .work-category-chip:hover {
-          background: rgba(255, 255, 255, 0.065);
-          border-color: rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.052);
+          border-color: rgba(255, 255, 255, 0.15);
           color: ${COLORS.text};
           transform: translateY(-1px);
         }
@@ -221,10 +203,10 @@ function CategoryNav({ active, onChange, counts }) {
 
         .work-category-chip.is-active {
           background:
-            linear-gradient(135deg, rgba(255, 180, 96, 0.16), rgba(255, 255, 255, 0.055)),
-            ${COLORS.surfaceDark};
+            linear-gradient(135deg, rgba(255, 180, 96, 0.13), rgba(255, 255, 255, 0.035)),
+            rgba(255, 255, 255, 0.035);
           border: 1px solid ${COLORS.gold};
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26), inset 0 0 0 1px rgba(255,255,255,0.045);
+          box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255,255,255,0.035);
           color: ${COLORS.text};
         }
 
@@ -235,31 +217,32 @@ function CategoryNav({ active, onChange, counts }) {
 
         .work-category-count {
           color: ${COLORS.muted};
-          font-size: 10px;
-          letter-spacing: 0.06em;
-          opacity: 0.86;
+          font-size: 9px;
+          letter-spacing: 0.05em;
+          opacity: 0.82;
         }
 
         .work-category-chip.is-active .work-category-count {
           color: ${COLORS.gold};
         }
 
-        @media (max-width: 720px) {
-          .work-category-shell {
-            margin-left: -0.75rem;
-            margin-right: -0.75rem;
+        @media (min-width: 1180px) {
+          .work-category-track {
+            justify-content: space-between;
           }
+        }
 
+        @media (max-width: 720px) {
           .work-category-meta {
             align-items: flex-start;
             flex-direction: column;
-            gap: 0.35rem;
+            gap: 0.32rem;
           }
 
           .work-category-chip {
-            font-size: 10px;
-            min-height: 41px;
-            padding: 0.72rem 0.86rem;
+            font-size: 9px;
+            min-height: 35px;
+            padding: 0.55rem 0.7rem;
           }
         }
       `}</style>
