@@ -31,25 +31,6 @@ function mapPortfolioImage(image) {
   };
 }
 
-function getCategoryCounts(items) {
-  return items.reduce((acc, item) => {
-    acc[item.category] = (acc[item.category] || 0) + 1;
-    return acc;
-  }, {});
-}
-
-function getFilterCount(filter, counts) {
-  if (filter === "All") {
-    return Object.values(counts).reduce((total, value) => total + value, 0);
-  }
-
-  const categoryKey = Object.keys(CATEGORY_LABELS).find(
-    (key) => CATEGORY_LABELS[key] === filter,
-  );
-
-  return counts[categoryKey] || 0;
-}
-
 function Spinner() {
   return (
     <div
@@ -75,22 +56,12 @@ function Spinner() {
   );
 }
 
-function CategoryNav({ active, onChange, counts }) {
-  const activeCount = getFilterCount(active, counts);
-
+function CategoryNav({ active, onChange }) {
   return (
     <section className="work-category-shell" aria-label="Portfolio categories">
-      <div className="work-category-meta">
-        <span>Browse Work</span>
-        <span>
-          {active} · {activeCount} photo{activeCount === 1 ? "" : "s"}
-        </span>
-      </div>
-
       <div className="work-category-track" role="tablist" aria-label="Filter work by category">
         {FILTERS.map((filter) => {
           const isActive = active === filter;
-          const count = getFilterCount(filter, counts);
 
           return (
             <button
@@ -103,7 +74,6 @@ function CategoryNav({ active, onChange, counts }) {
               className={`work-category-chip${isActive ? " is-active" : ""}`}
             >
               <span className="work-category-label">{filter}</span>
-              {count > 0 && <span className="work-category-count">{count}</span>}
             </button>
           );
         })}
@@ -119,27 +89,9 @@ function CategoryNav({ active, onChange, counts }) {
           width: 100%;
         }
 
-        .work-category-shell::before,
-        .work-category-shell::after {
-          display: none;
-        }
-
-        .work-category-meta {
-          align-items: center;
-          color: ${COLORS.muted};
-          display: flex;
-          font-family: var(--font-body);
-          font-size: 9px;
-          font-weight: 800;
-          justify-content: space-between;
-          letter-spacing: 0.13em;
-          padding: 0 0 0.5rem;
-          text-transform: uppercase;
-        }
-
         .work-category-track {
           display: flex;
-          gap: 0.42rem;
+          gap: 1rem;
           justify-content: flex-start;
           overflow-x: auto;
           padding: 0 0 0.08rem;
@@ -165,7 +117,6 @@ function CategoryNav({ active, onChange, counts }) {
           font-family: var(--font-body);
           font-size: 10px;
           font-weight: 800;
-          gap: 0.36rem;
           justify-content: center;
           letter-spacing: 0.12em;
           min-height: 37px;
@@ -215,28 +166,9 @@ function CategoryNav({ active, onChange, counts }) {
           transform: scaleX(1);
         }
 
-        .work-category-count {
-          color: ${COLORS.muted};
-          font-size: 9px;
-          letter-spacing: 0.05em;
-          opacity: 0.82;
-        }
-
-        .work-category-chip.is-active .work-category-count {
-          color: ${COLORS.gold};
-        }
-
-        @media (min-width: 1180px) {
-          .work-category-track {
-            justify-content: space-between;
-          }
-        }
-
         @media (max-width: 720px) {
-          .work-category-meta {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 0.32rem;
+          .work-category-track {
+            gap: 0.75rem;
           }
 
           .work-category-chip {
@@ -452,7 +384,6 @@ export default function Work() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [lightbox, setLightbox] = useState(null);
-  const [counts, setCounts] = useState({});
 
   useEffect(() => {
     async function fetchAll() {
@@ -469,7 +400,6 @@ export default function Work() {
       if (error) {
         console.error("Error loading portfolio images:", error);
         setAllItems([]);
-        setCounts({});
         setLoading(false);
         return;
       }
@@ -478,7 +408,6 @@ export default function Work() {
         .map(mapPortfolioImage)
         .filter((item) => item.img);
       setAllItems(results);
-      setCounts(getCategoryCounts(results));
       setLoading(false);
     }
 
@@ -500,7 +429,7 @@ export default function Work() {
           background: COLORS.bg,
         }}
       >
-        <CategoryNav active={filter} onChange={setFilter} counts={counts} />
+        <CategoryNav active={filter} onChange={setFilter} />
       </div>
 
       <div style={{ padding: 6 }}>
