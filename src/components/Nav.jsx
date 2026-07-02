@@ -18,7 +18,7 @@ export default function Nav() {
   }, []);
 
   const links = [
-    { label: "Gallery", to: "/work" },
+    { label: "Gallery", to: "/gallery" },
     { label: "Services", to: "/services" },
     { label: "About", to: "/about" },
     { label: "Shop", to: "/shop" },
