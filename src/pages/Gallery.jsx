@@ -1,945 +1,474 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Spinner } from "../components/UI";
-import { COLORS } from "../lib/constants";
+import { useEffect, useMemo, useState } from "react";
+import Footer from "../components/Footer";
+import { BASE, CATEGORY_LABELS, COLORS } from "../lib/constants";
 import { supabase } from "../lib/supabase";
 
-const CLIENT_GALLERY_BUCKET = "client-galleries";
-const BRAND_NAME = "Estanler Aleman Photography";
-const shellFont = "'Inter', sans-serif";
-const displayFont = "'Playfair Display', Georgia, serif";
-const textEncoder = new TextEncoder();
+const FILTERS = ["All", ...Object.values(CATEGORY_LABELS)];
 
-function getGalleryPhotoUrl(path) {
+function buildPublicUrl(path) {
   if (!path) return "";
-  const { data } = supabase.storage.from(CLIENT_GALLERY_BUCKET).getPublicUrl(path);
-  return data?.publicUrl || "";
+  return `${BASE}/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
 
-function sortByOrder(items = []) {
-  return [...items].sort((a, b) => Number(a.display_order || 0) - Number(b.display_order || 0));
-}
+function mapPortfolioImage(image) {
+  const gridPath =
+    image.display_path || image.original_path || image.thumbnail_path;
 
-function formatDate(value) {
-  if (!value) return "";
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+  const lightboxPath =
+    image.original_path || image.display_path || image.thumbnail_path;
 
-function getPhotoUrl(photo, preferred = "display") {
-  if (!photo) return "";
-  const path =
-    preferred === "original"
-      ? photo.original_path || photo.display_path || photo.thumbnail_path
-      : preferred === "thumbnail"
-        ? photo.thumbnail_path || photo.display_path || photo.original_path
-        : photo.display_path || photo.thumbnail_path || photo.original_path;
-  return getGalleryPhotoUrl(path);
-}
-
-function sanitizeFileName(value = "file") {
-  return String(value)
-    .trim()
-    .replace(/[\\/:*?"<>|]+/g, "-")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "") || "file";
-}
-
-function getTypographyTheme(style = "classic") {
-  const themes = {
-    classic: { family: displayFont, weight: 600, spacing: "0.02em", transform: "none" },
-    modern: { family: shellFont, weight: 800, spacing: "-0.03em", transform: "none" },
-    editorial: { family: displayFont, weight: 600, spacing: "0.18em", transform: "uppercase" },
-    luxury: { family: "Didot, 'Bodoni 72', 'Playfair Display', Georgia, serif", weight: 500, spacing: "0.01em", transform: "none" },
-    romantic: { family: "'Snell Roundhand', 'Brush Script MT', cursive", weight: 500, spacing: "0.01em", transform: "none" },
-    fashion: { family: "Impact, 'Arial Black', sans-serif", weight: 800, spacing: "0.04em", transform: "uppercase" },
-    cinematic: { family: shellFont, weight: 700, spacing: "0.2em", transform: "uppercase" },
-    minimal: { family: "Helvetica, Arial, sans-serif", weight: 300, spacing: "0.08em", transform: "uppercase" },
-    playful: { family: "'Trebuchet MS', Arial, sans-serif", weight: 800, spacing: "0.01em", transform: "none" },
-    street: { family: "'Arial Black', Impact, sans-serif", weight: 900, spacing: "-0.02em", transform: "uppercase" },
+  return {
+    id: image.id,
+    category: image.category,
+    label: image.title || image.file_name || "Portfolio image",
+    img: buildPublicUrl(gridPath),
+    fullImg: buildPublicUrl(lightboxPath),
+    aspect: image.aspect_ratio || "4 / 5",
+    objectPosition: `${image.object_position_x ?? 50}% ${
+      image.object_position_y ?? 15
+    }%`,
+    zoom: Number(image.zoom || 1),
   };
-
-  return themes[style] || themes.classic;
 }
 
-const crcTable = (() => {
-  const table = new Uint32Array(256);
-  for (let i = 0; i < 256; i += 1) {
-    let value = i;
-    for (let j = 0; j < 8; j += 1) {
-      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-    }
-    table[i] = value >>> 0;
-  }
-  return table;
-})();
-
-function crc32(bytes) {
-  let value = 0xffffffff;
-  for (let i = 0; i < bytes.length; i += 1) {
-    value = crcTable[(value ^ bytes[i]) & 0xff] ^ (value >>> 8);
-  }
-  return (value ^ 0xffffffff) >>> 0;
-}
-
-function uint16(value) {
-  return new Uint8Array([value & 0xff, (value >>> 8) & 0xff]);
-}
-
-function uint32(value) {
-  return new Uint8Array([
-    value & 0xff,
-    (value >>> 8) & 0xff,
-    (value >>> 16) & 0xff,
-    (value >>> 24) & 0xff,
-  ]);
-}
-
-function concatUint8(parts) {
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  const output = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
-}
-
-function createZipBlob(entries) {
-  const localParts = [];
-  const centralParts = [];
-  let offset = 0;
-
-  entries.forEach((entry) => {
-    const fileNameBytes = textEncoder.encode(entry.name);
-    const checksum = crc32(entry.bytes);
-    const size = entry.bytes.length;
-
-    if (size >= 0xffffffff || offset >= 0xffffffff) {
-      throw new Error("Gallery ZIP is too large for browser packaging.");
-    }
-
-    const localHeader = concatUint8([
-      uint32(0x04034b50),
-      uint16(20),
-      uint16(0x0800),
-      uint16(0),
-      uint16(0),
-      uint16(0),
-      uint32(checksum),
-      uint32(size),
-      uint32(size),
-      uint16(fileNameBytes.length),
-      uint16(0),
-      fileNameBytes,
-    ]);
-
-    localParts.push(localHeader, entry.bytes);
-
-    const centralHeader = concatUint8([
-      uint32(0x02014b50),
-      uint16(20),
-      uint16(20),
-      uint16(0x0800),
-      uint16(0),
-      uint16(0),
-      uint16(0),
-      uint32(checksum),
-      uint32(size),
-      uint32(size),
-      uint16(fileNameBytes.length),
-      uint16(0),
-      uint16(0),
-      uint16(0),
-      uint16(0),
-      uint32(0),
-      uint32(offset),
-      fileNameBytes,
-    ]);
-
-    centralParts.push(centralHeader);
-    offset += localHeader.length + size;
-  });
-
-  const centralDirectory = concatUint8(centralParts);
-  const endRecord = concatUint8([
-    uint32(0x06054b50),
-    uint16(0),
-    uint16(0),
-    uint16(entries.length),
-    uint16(entries.length),
-    uint32(centralDirectory.length),
-    uint32(offset),
-    uint16(0),
-  ]);
-
-  return new Blob([concatUint8([...localParts, centralDirectory, endRecord])], {
-    type: "application/zip",
-  });
-}
-
-function useLocalFavorites(galleryId) {
-  const [favorites, setFavorites] = useState(new Set());
-
-  useEffect(() => {
-    if (!galleryId) return;
-    try {
-      const stored = window.localStorage.getItem(`client-gallery-favorites:${galleryId}`);
-      setFavorites(new Set(stored ? JSON.parse(stored) : []));
-    } catch {
-      setFavorites(new Set());
-    }
-  }, [galleryId]);
-
-  useEffect(() => {
-    if (!galleryId) return;
-    window.localStorage.setItem(
-      `client-gallery-favorites:${galleryId}`,
-      JSON.stringify(Array.from(favorites)),
-    );
-  }, [favorites, galleryId]);
-
-  const toggleFavorite = useCallback((photoId) => {
-    setFavorites((current) => {
-      const next = new Set(current);
-      if (next.has(photoId)) next.delete(photoId);
-      else next.add(photoId);
-      return next;
-    });
-  }, []);
-
-  return { favorites, toggleFavorite };
-}
-
-export default function Gallery() {
-  const { slug } = useParams();
-  const [gallery, setGallery] = useState(null);
-  const [sections, setSections] = useState([]);
-  const [photos, setPhotos] = useState([]);
-  const [state, setState] = useState("loading");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [lightbox, setLightbox] = useState(null);
-  const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
-  const [slideshowPlaying, setSlideshowPlaying] = useState(false);
-  const [zipBusy, setZipBusy] = useState(false);
-
-  const { favorites, toggleFavorite } = useLocalFavorites(gallery?.id);
-
-  const orderedSections = useMemo(() => sortByOrder(sections), [sections]);
-  const orderedPhotos = useMemo(() => sortByOrder(photos), [photos]);
-  const visibleSectionIds = useMemo(() => new Set(orderedSections.map((section) => section.id)), [orderedSections]);
-  const publicPhotos = useMemo(
-    () => orderedPhotos.filter((photo) => !photo.section_id || visibleSectionIds.has(photo.section_id)),
-    [orderedPhotos, visibleSectionIds],
+function Spinner() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "6rem 0",
+      }}
+    >
+      <div
+        style={{
+          width: "28px",
+          height: "28px",
+          border: `2px solid ${COLORS.border}`,
+          borderTop: `2px solid ${COLORS.gold}`,
+          borderRadius: "50%",
+          animation: "spin 0.8s linear infinite",
+        }}
+      />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
   );
-  const coverPhoto = useMemo(
-    () => publicPhotos.find((photo) => photo.id === gallery?.cover_image_id) || publicPhotos[0] || null,
-    [gallery?.cover_image_id, publicPhotos],
+}
+
+function CategoryNav({ active, onChange }) {
+  return (
+    <section className="gallery-category-shell" aria-label="Portfolio categories">
+      <div
+        className="gallery-category-track"
+        role="tablist"
+        aria-label="Filter gallery by category"
+      >
+        {FILTERS.map((filter) => {
+          const isActive = active === filter;
+
+          return (
+            <button
+              key={filter}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-current={isActive ? "page" : undefined}
+              onClick={() => onChange(filter)}
+              className={`gallery-category-chip${isActive ? " is-active" : ""}`}
+            >
+              <span className="gallery-category-label">{filter}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <style>{`
+        .gallery-category-shell {
+          background: transparent;
+          border: none;
+          box-shadow: none;
+          padding: 0;
+          position: relative;
+          width: 100%;
+        }
+
+        .gallery-category-track {
+          display: flex;
+          gap: 1rem;
+          justify-content: flex-start;
+          overflow-x: auto;
+          padding: 0 0 0.08rem;
+          scroll-padding-inline: 0;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          position: relative;
+          z-index: 1;
+        }
+
+        .gallery-category-track::-webkit-scrollbar {
+          display: none;
+        }
+
+        .gallery-category-chip {
+          align-items: center;
+          background: rgba(255, 255, 255, 0.018);
+          border: 1px solid rgba(255, 255, 255, 0.07);
+          color: ${COLORS.muted};
+          cursor: pointer;
+          display: inline-flex;
+          flex: 0 0 auto;
+          font-family: var(--font-body);
+          font-size: 10px;
+          font-weight: 800;
+          justify-content: center;
+          letter-spacing: 0.12em;
+          min-height: 37px;
+          padding: 0.6rem 0.78rem;
+          position: relative;
+          text-transform: uppercase;
+          transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .gallery-category-chip::after {
+          background: ${COLORS.gold};
+          bottom: 4px;
+          content: "";
+          height: 1px;
+          left: 0.75rem;
+          opacity: 0;
+          position: absolute;
+          right: 0.75rem;
+          transform: scaleX(0.45);
+          transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .gallery-category-chip:hover {
+          background: rgba(255, 255, 255, 0.052);
+          border-color: rgba(255, 255, 255, 0.15);
+          color: ${COLORS.text};
+          transform: translateY(-1px);
+        }
+
+        .gallery-category-chip:focus-visible {
+          outline: 2px solid ${COLORS.gold};
+          outline-offset: 3px;
+        }
+
+        .gallery-category-chip.is-active {
+          background:
+            linear-gradient(135deg, rgba(255, 180, 96, 0.13), rgba(255, 255, 255, 0.035)),
+            rgba(255, 255, 255, 0.035);
+          border: 1px solid ${COLORS.gold};
+          box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255,255,255,0.035);
+          color: ${COLORS.text};
+        }
+
+        .gallery-category-chip.is-active::after {
+          opacity: 1;
+          transform: scaleX(1);
+        }
+
+        @media (max-width: 720px) {
+          .gallery-category-track {
+            gap: 0.75rem;
+          }
+
+          .gallery-category-chip {
+            font-size: 9px;
+            min-height: 35px;
+            padding: 0.55rem 0.7rem;
+          }
+        }
+      `}</style>
+    </section>
   );
-  const lightboxIndex = useMemo(
-    () => (lightbox ? publicPhotos.findIndex((photo) => photo.id === lightbox.id) : -1),
-    [lightbox, publicPhotos],
+}
+
+function MasonryGrid({ items, onSelect }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        columns: "4 280px",
+        columnGap: 6,
+      }}
+    >
+      {items.map((item) => (
+        <PhotoTile key={item.id} item={item} onSelect={onSelect} />
+      ))}
+    </div>
   );
+}
 
-  const loadGallery = useCallback(async () => {
-    if (!slug) return;
-    setState("loading");
-    setError("");
+function PhotoTile({ item, onSelect }) {
+  const [hovered, setHovered] = useState(false);
 
-    const { data: galleryData, error: galleryError } = await supabase
-      .from("client_galleries")
-      .select("*")
-      .eq("slug", slug)
-      .eq("status", "published")
-      .single();
+  return (
+    <button
+      type="button"
+      aria-label={`Open ${item.label || "portfolio image"}`}
+      onClick={() => onSelect(item)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "relative",
+        display: "block",
+        width: "100%",
+        breakInside: "avoid",
+        margin: "0 0 6px",
+        padding: 0,
+        border: "none",
+        background: COLORS.surface,
+        cursor: "pointer",
+        overflow: "hidden",
+        textAlign: "left",
+        transform: hovered ? "translateY(-4px) scale(1.012)" : "none",
+        boxShadow: hovered ? "0 18px 40px rgba(0, 0, 0, 0.28)" : "none",
+        zIndex: hovered ? 2 : 1,
+        transition:
+          "transform 0.28s ease, box-shadow 0.28s ease, filter 0.28s ease",
+      }}
+    >
+      <img
+        src={item.img}
+        alt={item.label}
+        loading="lazy"
+        decoding="async"
+        style={{
+          width: "100%",
+          height: "auto",
+          display: "block",
+          filter: hovered ? "brightness(1.06) contrast(1.03)" : "none",
+          transition: "filter 0.28s ease",
+        }}
+        onError={(event) => {
+          event.currentTarget.parentElement.style.display = "none";
+        }}
+      />
 
-    if (galleryError || !galleryData) {
-      setGallery(null);
-      setState("notfound");
-      return;
-    }
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          border: hovered
+            ? `1px solid ${COLORS.gold}`
+            : "1px solid transparent",
+          boxShadow: hovered
+            ? "inset 0 0 0 1px rgba(255, 255, 255, 0.08)"
+            : "none",
+          opacity: hovered ? 0.9 : 0,
+          transition: "opacity 0.28s ease, border-color 0.28s ease",
+          pointerEvents: "none",
+        }}
+      />
+    </button>
+  );
+}
 
-    const [sectionResult, photoResult] = await Promise.all([
-      supabase
-        .from("client_gallery_sections")
-        .select("*")
-        .eq("gallery_id", galleryData.id)
-        .eq("is_visible", true)
-        .order("display_order", { ascending: true }),
-      supabase
-        .from("client_gallery_images")
-        .select("*")
-        .eq("gallery_id", galleryData.id)
-        .order("display_order", { ascending: true }),
-    ]);
-
-    if (sectionResult.error || photoResult.error) {
-      setError(sectionResult.error?.message || photoResult.error?.message || "Gallery could not load.");
-      setState("error");
-      return;
-    }
-
-    setGallery(galleryData);
-    setSections(sectionResult.data || []);
-    setPhotos(photoResult.data || []);
-    setState("view");
-  }, [slug]);
+function Lightbox({ item, items, onClose, onNav }) {
+  const index = items.findIndex((photo) => photo.id === item.id);
 
   useEffect(() => {
-    loadGallery();
-  }, [loadGallery]);
+    const handler = (event) => {
+      if (event.key === "Escape") onClose();
 
-  useEffect(() => {
-    if (!notice || zipBusy) return undefined;
-    const timer = window.setTimeout(() => setNotice(""), 4200);
-    return () => window.clearTimeout(timer);
-  }, [notice, zipBusy]);
-
-  useEffect(() => {
-    if (!lightbox) {
-      setSlideshowPlaying(false);
-      return undefined;
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setLightbox(null);
-        setSlideshowPlaying(false);
+      if (event.key === "ArrowRight" && index < items.length - 1) {
+        onNav(items[index + 1]);
       }
-      if (event.key === "ArrowRight" && lightboxIndex < publicPhotos.length - 1) {
-        setLightbox(publicPhotos[lightboxIndex + 1]);
-      }
-      if (event.key === "ArrowLeft" && lightboxIndex > 0) {
-        setLightbox(publicPhotos[lightboxIndex - 1]);
+
+      if (event.key === "ArrowLeft" && index > 0) {
+        onNav(items[index - 1]);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightbox, lightboxIndex, publicPhotos]);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [index, items, onClose, onNav]);
 
-  useEffect(() => {
-    if (!slideshowPlaying || !lightbox || publicPhotos.length < 2) return undefined;
-    const timer = window.setTimeout(() => {
-      const nextIndex = lightboxIndex >= publicPhotos.length - 1 ? 0 : lightboxIndex + 1;
-      setLightbox(publicPhotos[nextIndex]);
-    }, 3500);
-    return () => window.clearTimeout(timer);
-  }, [lightbox, lightboxIndex, publicPhotos, slideshowPlaying]);
-
-  const sectionPhotos = useCallback(
-    (sectionId) => publicPhotos.filter((photo) => photo.section_id === sectionId),
-    [publicPhotos],
-  );
-
-  const scrollToPhotos = () => {
-    document.getElementById("gallery-sections")?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const copyText = async (text, message) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setNotice(message);
-    } catch {
-      setNotice("Copy failed. Please copy from the address bar.");
-    }
-  };
-
-  const shareGallery = async () => {
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: gallery?.title || BRAND_NAME, url });
-        return;
-      } catch {
-        return;
-      }
-    }
-    copyText(url, "Gallery link copied.");
-  };
-
-  const sharePhoto = async (photo) => {
-    const url = getPhotoUrl(photo, "display");
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: photo.file_name || gallery?.title || BRAND_NAME, url });
-        return;
-      } catch {
-        return;
-      }
-    }
-    copyText(url, "Photo link copied.");
-  };
-
-  const saveBlob = (blob, fileName) => {
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-  };
-
-  const downloadPhoto = async (photo) => {
-    const url = getPhotoUrl(photo, "original");
-    if (!url) return;
-
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Download failed.");
-      const blob = await response.blob();
-      saveBlob(blob, photo.file_name || "gallery-photo.jpg");
-    } catch {
-      setNotice("Download could not start. Please try again.");
-    }
-  };
-
-  const downloadGalleryZip = async () => {
-    if (zipBusy) return;
-    if (!publicPhotos.length) {
-      setNotice("No photos available to package yet.");
-      return;
-    }
-
-    const folderName = sanitizeFileName(gallery?.slug || gallery?.title || slug || "gallery");
-    const entries = [];
-    setZipBusy(true);
-
-    try {
-      for (let index = 0; index < publicPhotos.length; index += 1) {
-        const photo = publicPhotos[index];
-        const url = getPhotoUrl(photo, "original");
-        if (!url) continue;
-
-        setNotice(`Preparing ZIP ${index + 1}/${publicPhotos.length}...`);
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Photo could not be fetched.");
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        const cleanName = sanitizeFileName(photo.file_name || `photo-${index + 1}.jpg`);
-        entries.push({ name: `${folderName}/${String(index + 1).padStart(3, "0")}-${cleanName}`, bytes });
-      }
-
-      setNotice("Packaging ZIP file...");
-      const zipBlob = createZipBlob(entries);
-      saveBlob(zipBlob, `${folderName}.zip`);
-      setNotice("Gallery ZIP download started.");
-    } catch {
-      setNotice("ZIP download could not be prepared. Try downloading individual photos for now.");
-    } finally {
-      setZipBusy(false);
-    }
-  };
-
-  const startSlideshow = () => {
-    if (!publicPhotos.length) {
-      setNotice("No photos available for slideshow yet.");
-      return;
-    }
-    setLightbox(publicPhotos[0]);
-    setSlideshowPlaying(true);
-  };
-
-  const goLightbox = (direction) => {
-    const nextIndex = lightboxIndex + direction;
-    if (nextIndex >= 0 && nextIndex < publicPhotos.length) {
-      setLightbox(publicPhotos[nextIndex]);
-    }
-  };
-
-  const actionIconStyle = {
-    background: "transparent",
-    border: "none",
-    color: "#555",
-    cursor: "pointer",
-    fontFamily: shellFont,
-    fontSize: 24,
-    lineHeight: 1,
-    padding: "0.55rem 0.65rem",
-  };
-
-  const photoActionButtonStyle = {
-    background: "rgba(0,0,0,0.16)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    color: "#fff",
-    cursor: "pointer",
-    display: "grid",
-    fontSize: 18,
-    height: 38,
-    lineHeight: 1,
-    placeItems: "center",
-    width: 38,
-  };
-
-  if (state === "loading") {
-    return (
-      <div style={{ minHeight: "100vh", background: COLORS.bg, display: "grid", placeItems: "center" }}>
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (state === "notfound" || state === "error") {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: COLORS.bg,
-          color: COLORS.white,
-          display: "grid",
-          placeItems: "center",
-          padding: "2rem",
-          textAlign: "center",
-        }}
-      >
-        <div style={{ maxWidth: 460 }}>
-          <h1 style={{ fontFamily: displayFont, fontSize: "2.3rem", margin: "0 0 1rem" }}>
-            Gallery Not Found
-          </h1>
-          <p style={{ color: COLORS.muted, fontFamily: shellFont, lineHeight: 1.7, margin: 0 }}>
-            {error || "This gallery may be hidden, archived, or the link may be incorrect."}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const themeColor = gallery.theme_color || COLORS.gold;
-  const coverStyle = gallery.cover_style || "center";
-  const gridStyle = gallery.grid_style || "masonry";
-  const typeTheme = getTypographyTheme(gallery.typography_style || "classic");
-  const coverUrl = getPhotoUrl(coverPhoto, "display");
-  const objectPosition = `${gallery.cover_focal_x ?? 50}% ${gallery.cover_focal_y ?? 50}%`;
-  const coverBackground = {
-    backgroundImage: coverUrl ? `url(${coverUrl})` : "linear-gradient(135deg, #111, #333)",
-    backgroundPosition: objectPosition,
-    backgroundSize: "cover",
-    backgroundRepeat: "no-repeat",
-  };
-  const visiblePhotoCount = orderedSections.reduce((total, section) => total + sectionPhotos(section.id).length, 0);
-
-  const titleBlock = (align = "center", color = "#fff", options = {}) => (
+  return (
     <div
+      onClick={onClose}
       style={{
-        textAlign: align,
-        color,
-        width: "100%",
-        maxWidth: options.maxWidth || 760,
-        textShadow: color === "#fff" ? "0 14px 36px rgba(0,0,0,0.42)" : "none",
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background: "rgba(10,10,10,0.96)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
       }}
     >
-      <div
+      <button
+        type="button"
+        onClick={onClose}
         style={{
-          color: options.dateColor || themeColor,
-          fontFamily: shellFont,
-          fontSize: options.dateSize || 12,
-          fontWeight: 800,
-          letterSpacing: "0.18em",
-          marginBottom: "0.85rem",
-          textTransform: "uppercase",
+          position: "absolute",
+          top: "1.5rem",
+          right: "1.5rem",
+          background: "rgba(0,0,0,0.25)",
+          border: `1px solid ${COLORS.border}`,
+          color: COLORS.text,
+          fontSize: "1.2rem",
+          cursor: "pointer",
+          zIndex: 201,
+          padding: "0.75rem 1rem",
         }}
       >
-        {formatDate(gallery.event_date)}
-      </div>
-      <h1
-        style={{
-          fontFamily: typeTheme.family,
-          fontSize: options.titleSize || "clamp(2.55rem, 8vw, 6.4rem)",
-          fontWeight: typeTheme.weight,
-          letterSpacing: typeTheme.spacing,
-          lineHeight: 0.98,
-          margin: 0,
-          overflowWrap: "anywhere",
-          textTransform: typeTheme.transform,
-        }}
-      >
-        {gallery.title}
-      </h1>
-      {gallery.client_name && (
-        <div
+        ✕
+      </button>
+
+      {index > 0 && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onNav(items[index - 1]);
+          }}
           style={{
-            fontFamily: shellFont,
-            fontSize: options.clientSize || 13,
-            letterSpacing: "0.14em",
-            marginTop: "1.1rem",
-            textTransform: "uppercase",
+            position: "absolute",
+            left: "1.5rem",
+            background: "rgba(0,0,0,0.25)",
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text,
+            fontSize: "2rem",
+            cursor: "pointer",
+            zIndex: 201,
+            padding: "0.75rem 1rem",
           }}
         >
-          {gallery.client_name}
-        </div>
+          ‹
+        </button>
+      )}
+
+      <img
+        src={item.fullImg || item.img}
+        alt={item.label}
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          maxWidth: "92vw",
+          maxHeight: "88vh",
+          objectFit: "contain",
+          background: COLORS.bg,
+        }}
+      />
+
+      {index < items.length - 1 && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onNav(items[index + 1]);
+          }}
+          style={{
+            position: "absolute",
+            right: "1.5rem",
+            background: "rgba(0,0,0,0.25)",
+            border: `1px solid ${COLORS.border}`,
+            color: COLORS.text,
+            fontSize: "2rem",
+            cursor: "pointer",
+            zIndex: 201,
+            padding: "0.75rem 1rem",
+          }}
+        >
+          ›
+        </button>
       )}
     </div>
   );
+}
 
-  const viewButton = (variant = "light") => (
-    <button
-      type="button"
-      onClick={scrollToPhotos}
-      style={{
-        background: variant === "dark" ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.11)",
-        border: `1px solid ${variant === "dark" ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.65)"}`,
-        color: variant === "dark" ? "#111" : "#fff",
-        cursor: "pointer",
-        fontFamily: shellFont,
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: "0.16em",
-        marginTop: "2.2rem",
-        padding: "0.95rem 1.6rem",
-        textTransform: "uppercase",
-      }}
-    >
-      View Gallery
-    </button>
-  );
+export default function Gallery() {
+  const [allItems, setAllItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("All");
+  const [lightbox, setLightbox] = useState(null);
 
-  const renderHero = () => {
-    const heroHeight = "100vh";
-    const compactTitle = { titleSize: "clamp(2rem, 4.4vw, 3.7rem)", maxWidth: 520, dateSize: 11, clientSize: 12 };
+  useEffect(() => {
+    async function fetchAll() {
+      setLoading(true);
 
-    if (coverStyle === "novel" || coverStyle === "journal") {
-      const imageFirst = coverStyle === "journal";
-      return (
-        <section
-          style={{
-            minHeight: heroHeight,
-            background: "#fff",
-            color: "#111",
-            display: "grid",
-            gridTemplateColumns: imageFirst ? "minmax(0, 62%) minmax(280px, 38%)" : "minmax(280px, 42%) minmax(0, 58%)",
-            border: coverStyle === "novel" ? "clamp(14px, 2vw, 28px) solid #fff" : "none",
-            boxSizing: "border-box",
-          }}
-        >
-          {!imageFirst && <div style={{ display: "grid", placeItems: "center", padding: "clamp(2rem, 5vw, 5rem)" }}><div>{titleBlock("left", "#111", compactTitle)}{viewButton("dark")}</div></div>}
-          <div style={{ ...coverBackground, minHeight: heroHeight }} />
-          {imageFirst && <div style={{ display: "grid", placeItems: "center", padding: "clamp(2rem, 4vw, 4rem)" }}><div>{titleBlock("left", "#111", compactTitle)}{viewButton("dark")}</div></div>}
-        </section>
-      );
+      const { data, error } = await supabase
+        .from("portfolio_images")
+        .select("*")
+        .eq("is_visible", true)
+        .neq("category", "unlisted")
+        .order("display_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading portfolio images:", error);
+        setAllItems([]);
+        setLoading(false);
+        return;
+      }
+
+      const results = (data || [])
+        .map(mapPortfolioImage)
+        .filter((item) => item.img);
+      setAllItems(results);
+      setLoading(false);
     }
 
-    if (coverStyle === "minimal") {
-      return (
-        <section style={{ minHeight: heroHeight, background: "#fff", color: "#111", display: "grid", placeItems: "center", padding: "clamp(2rem, 5vw, 5rem)", boxSizing: "border-box", textAlign: "center" }}>
-          <div style={{ width: "min(760px, 100%)" }}>
-            <div style={{ ...coverBackground, width: "min(300px, 64vw)", aspectRatio: "1 / 1", margin: "0 auto 2rem" }} />
-            {titleBlock("center", "#111", { titleSize: "clamp(2rem, 6vw, 4.25rem)" })}
-            {viewButton("dark")}
-          </div>
-        </section>
-      );
-    }
+    fetchAll();
+  }, []);
 
-    if (coverStyle === "split") {
-      return (
-        <section style={{ minHeight: heroHeight, background: "#101010", color: "#fff", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 1fr)" }}>
-          <div style={{ ...coverBackground, minHeight: heroHeight }} />
-          <div style={{ display: "grid", placeItems: "center", padding: "clamp(2rem, 5vw, 5rem)" }}><div>{titleBlock("left", "#fff", compactTitle)}{viewButton()}</div></div>
-        </section>
-      );
-    }
+  const filtered = useMemo(() => {
+    if (filter === "All") return allItems;
 
-    if (coverStyle === "vintage") {
-      return (
-        <section style={{ minHeight: heroHeight, background: "#252525", padding: "clamp(1rem, 2.5vw, 2rem)", boxSizing: "border-box", display: "grid", gridTemplateRows: "minmax(360px, 1fr) auto" }}>
-          <div style={{ ...coverBackground, minHeight: "calc(100vh - 128px)" }} />
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(140px, 1fr) minmax(0, auto) minmax(140px, 1fr)", alignItems: "center", gap: "1.5rem", color: "#fff", padding: "clamp(1.3rem, 3vw, 2rem) 0.5rem 0.35rem" }}>
-            <div style={{ fontFamily: shellFont, fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.78 }}>{BRAND_NAME}</div>
-            {titleBlock("center", "#fff", { titleSize: "clamp(1.8rem, 4vw, 3.45rem)", maxWidth: 720 })}
-            <div style={{ textAlign: "right" }}>{viewButton()}</div>
-          </div>
-        </section>
-      );
-    }
-
-    if (coverStyle === "divider") {
-      return (
-        <section style={{ minHeight: heroHeight, ...coverBackground, display: "flex", alignItems: "stretch", justifyContent: "flex-start" }}>
-          <div style={{ width: "min(520px, 46vw)", minHeight: heroHeight, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(1px)", display: "grid", placeItems: "center", padding: "clamp(2rem, 5vw, 4rem)", boxSizing: "border-box" }}>
-            <div style={{ textAlign: "center" }}>{titleBlock("center", "#fff", { titleSize: "clamp(1.8rem, 4vw, 3.3rem)", maxWidth: 430 })}{viewButton()}</div>
-          </div>
-        </section>
-      );
-    }
-
-    const hasTint = ["center", "left", "stripe"].includes(coverStyle);
-    const alignItems = coverStyle === "stripe" ? "center" : "flex-end";
-    const justifyContent = coverStyle === "left" ? "flex-start" : "center";
-    const textAlign = coverStyle === "left" ? "left" : "center";
-
-    return (
-      <section style={{ minHeight: heroHeight, ...coverBackground, position: "relative", display: "flex", alignItems, justifyContent, padding: "clamp(2rem, 6vw, 6rem)", boxSizing: "border-box", overflow: "hidden" }}>
-        {hasTint && <span style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(0,0,0,0.48), rgba(0,0,0,0.22))" }} />}
-        {coverStyle === "stripe" && <span style={{ position: "absolute", left: "12%", right: "12%", top: "50%", height: 1, background: "rgba(255,255,255,0.72)" }} />}
-        {coverStyle === "frame" && <span style={{ position: "absolute", inset: "clamp(1.25rem, 4vw, 3.2rem)", border: "2px solid rgba(255,255,255,0.9)", boxShadow: "0 0 0 1px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(0,0,0,0.2)" }} />}
-        <div style={{ position: "relative", zIndex: 1, textAlign }}>
-          <div style={{ fontFamily: shellFont, fontSize: 11, letterSpacing: "0.2em", marginBottom: "clamp(4rem, 16vh, 9rem)", textTransform: "uppercase", color: "#fff" }}>{BRAND_NAME}</div>
-          {titleBlock(textAlign, "#fff")}
-          {viewButton()}
-        </div>
-      </section>
-    );
-  };
-
-  const PhotoCard = ({ photo, mode = "masonry", index = 0 }) => {
-    const thumbnailUrl = getPhotoUrl(photo, "thumbnail");
-    const displayUrl = getPhotoUrl(photo, "display");
-    const imageUrl = displayUrl || thumbnailUrl;
-    const isFavorite = favorites.has(photo.id);
-    const hovered = hoveredPhotoId === photo.id;
-    const isSquare = mode === "square";
-    const isMosaicFeature = mode === "mosaic" && index % 7 === 0;
-
-    return (
-      <article
-        onClick={() => setLightbox(photo)}
-        onMouseEnter={() => setHoveredPhotoId(photo.id)}
-        onMouseLeave={() => setHoveredPhotoId(null)}
-        style={{
-          breakInside: "avoid",
-          marginBottom: mode === "clean" || mode === "editorial" ? 18 : 8,
-          position: "relative",
-          overflow: "hidden",
-          background: "#111",
-          cursor: "pointer",
-          gridColumn: isMosaicFeature ? "span 2" : undefined,
-          gridRow: isMosaicFeature ? "span 2" : undefined,
-          aspectRatio: isSquare || mode === "mosaic" ? "1 / 1" : undefined,
-        }}
-      >
-        <img
-          src={imageUrl}
-          alt={photo.alt_text || photo.title || photo.file_name || "Gallery photo"}
-          loading="lazy"
-          onError={(event) => {
-            if (thumbnailUrl && event.currentTarget.src !== thumbnailUrl) {
-              event.currentTarget.src = thumbnailUrl;
-            }
-          }}
-          style={{
-            width: "100%",
-            height: isSquare || mode === "mosaic" ? "100%" : "auto",
-            objectFit: isSquare || mode === "mosaic" ? "cover" : "cover",
-            display: "block",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            minHeight: 82,
-            background: "linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.34) 48%, transparent 100%)",
-            opacity: hovered ? 1 : 0,
-            transition: "opacity 0.2s ease",
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "flex-end",
-            gap: "0.75rem",
-            padding: "0.8rem",
-          }}
-        >
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              toggleFavorite(photo.id);
-            }}
-            style={{ ...photoActionButtonStyle, color: isFavorite ? themeColor : "#fff" }}
-            title="Favorite photo"
-          >
-            {isFavorite ? "♥" : "♡"}
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              downloadPhoto(photo);
-            }}
-            style={photoActionButtonStyle}
-            title="Download photo"
-          >
-            ⇩
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              sharePhoto(photo);
-            }}
-            style={photoActionButtonStyle}
-            title="Share photo"
-          >
-            ↗
-          </button>
-        </div>
-      </article>
-    );
-  };
-
-  const renderSectionPhotos = (items) => {
-    if (!items.length) {
-      return <div style={{ color: "#777", fontFamily: shellFont, fontSize: 14 }}>No photos in this set yet.</div>;
-    }
-
-    if (gridStyle === "square") {
-      return <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>{items.map((photo, index) => <PhotoCard key={photo.id} photo={photo} mode="square" index={index} />)}</div>;
-    }
-
-    if (gridStyle === "horizontal") {
-      return <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>{items.map((photo, index) => <PhotoCard key={photo.id} photo={photo} mode="horizontal" index={index} />)}</div>;
-    }
-
-    if (gridStyle === "mosaic") {
-      return <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gridAutoRows: 170, gap: 10 }}>{items.map((photo, index) => <PhotoCard key={photo.id} photo={photo} mode="mosaic" index={index} />)}</div>;
-    }
-
-    if (gridStyle === "filmstrip") {
-      return <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 12 }}>{items.map((photo, index) => <div key={photo.id} style={{ flex: "0 0 min(74vw, 420px)" }}><PhotoCard photo={photo} mode="filmstrip" index={index} /></div>)}</div>;
-    }
-
-    const columnCount = gridStyle === "vertical" ? "2 300px" : gridStyle === "clean" ? "4 220px" : gridStyle === "editorial" ? "3 280px" : "3 240px";
-    return <div style={{ columns: columnCount, columnGap: gridStyle === "editorial" || gridStyle === "clean" ? 18 : 8 }}>{items.map((photo, index) => <PhotoCard key={photo.id} photo={photo} mode={gridStyle} index={index} />)}</div>;
-  };
+    return allItems.filter((item) => CATEGORY_LABELS[item.category] === filter);
+  }, [allItems, filter]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f2ee", color: "#111" }}>
-      {renderHero()}
-
-      <header
+    <div style={{ background: COLORS.bg, minHeight: "100vh" }}>
+      <div
         style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 70,
-          background: "rgba(255,255,255,0.94)",
-          borderBottom: "1px solid rgba(0,0,0,0.08)",
-          backdropFilter: "blur(14px)",
-          display: "grid",
-          gridTemplateColumns: "minmax(180px, 1fr) auto minmax(180px, 1fr)",
-          alignItems: "center",
-          gap: "1rem",
-          padding: "0.9rem clamp(1rem, 4vw, 3rem)",
+          paddingTop: "88px",
+          padding: "96px clamp(1rem, 4vw, 3.5rem) 0",
+          background: COLORS.bg,
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: displayFont, fontSize: "1.1rem", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {gallery.title}
+        <CategoryNav active={filter} onChange={setFilter} />
+      </div>
+
+      <div style={{ padding: 6 }}>
+        {loading && <Spinner />}
+
+        {!loading && filtered.length === 0 && (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "6rem 2rem",
+              fontFamily: "var(--font-body)",
+              fontWeight: 300,
+              fontSize: "0.9rem",
+              color: COLORS.muted,
+            }}
+          >
+            No photos in this category yet.
           </div>
-          <div style={{ color: "#777", fontFamily: shellFont, fontSize: 12, marginTop: 2 }}>
-            {visiblePhotoCount} photo{visiblePhotoCount === 1 ? "" : "s"}
-            {favorites.size > 0 ? ` · ${favorites.size} favorite${favorites.size === 1 ? "" : "s"}` : ""}
-          </div>
-        </div>
+        )}
 
-        <nav style={{ display: "flex", gap: "0.4rem", overflowX: "auto", justifyContent: "center", maxWidth: "44vw" }}>
-          {orderedSections.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() => document.getElementById(`section-${section.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#333",
-                cursor: "pointer",
-                fontFamily: shellFont,
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: "0.12em",
-                padding: "0.65rem 0.8rem",
-                textTransform: "uppercase",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {section.title}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-          <button type="button" onClick={() => setNotice(favorites.size > 0 ? `${favorites.size} favorite${favorites.size === 1 ? "" : "s"} saved on this device.` : "Tap the heart on any photo to add favorites.")} style={{ ...actionIconStyle, color: favorites.size > 0 ? themeColor : "#555" }} title="Favorites">♡</button>
-          <button type="button" onClick={downloadGalleryZip} disabled={zipBusy} style={{ ...actionIconStyle, opacity: zipBusy ? 0.45 : 1 }} title="Download gallery ZIP">⇩</button>
-          <button type="button" onClick={shareGallery} style={actionIconStyle} title="Share gallery">↗</button>
-          <button type="button" onClick={startSlideshow} style={actionIconStyle} title="Play slideshow">▶</button>
-        </div>
-      </header>
-
-      {notice && (
-        <div
-          style={{
-            position: "fixed",
-            top: 82,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 120,
-            background: "#111",
-            color: "#fff",
-            border: `1px solid ${themeColor}`,
-            boxShadow: "0 16px 48px rgba(0,0,0,0.24)",
-            fontFamily: shellFont,
-            fontSize: 13,
-            padding: "0.85rem 1rem",
-          }}
-        >
-          {notice}
-        </div>
-      )}
-
-      <main id="gallery-sections" style={{ padding: "clamp(2rem, 5vw, 4rem) clamp(1rem, 4vw, 3rem)" }}>
-        {orderedSections.length === 0 && <div style={{ color: "#777", fontFamily: shellFont, padding: "4rem 1rem", textAlign: "center" }}>No visible photo sets yet.</div>}
-
-        {orderedSections.map((section) => {
-          const items = sectionPhotos(section.id);
-          return (
-            <section id={`section-${section.id}`} key={section.id} style={{ scrollMarginTop: 110, marginBottom: "clamp(3rem, 7vw, 6rem)" }}>
-              <div style={{ display: "flex", alignItems: "end", justifyContent: "space-between", gap: "1rem", marginBottom: "1.25rem" }}>
-                <h2 style={{ fontFamily: displayFont, fontSize: "clamp(2rem, 4vw, 3.3rem)", lineHeight: 1, margin: 0 }}>{section.title}</h2>
-                <div style={{ color: "#777", fontFamily: shellFont, fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase" }}>{items.length} photo{items.length === 1 ? "" : "s"}</div>
-              </div>
-              {renderSectionPhotos(items)}
-            </section>
-          );
-        })}
-      </main>
+        {!loading && filtered.length > 0 && (
+          <MasonryGrid items={filtered} onSelect={setLightbox} />
+        )}
+      </div>
 
       {lightbox && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 220, background: "rgba(0,0,0,0.96)", color: "#fff", display: "grid", gridTemplateRows: "auto 1fr auto" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", padding: "1rem clamp(1rem, 3vw, 2rem)" }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: shellFont, fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.62)" }}>{lightboxIndex + 1} / {publicPhotos.length}{slideshowPlaying ? " · Slideshow" : ""}</div>
-              <div style={{ fontFamily: displayFont, fontSize: "1.2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lightbox.title || lightbox.file_name || gallery.title}</div>
-            </div>
-            <button type="button" onClick={() => { setLightbox(null); setSlideshowPlaying(false); }} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: 26 }}>×</button>
-          </div>
-
-          <div style={{ position: "relative", display: "grid", placeItems: "center", minHeight: 0, padding: "0 4rem" }}>
-            {lightboxIndex > 0 && <button type="button" onClick={() => goLightbox(-1)} style={{ position: "absolute", left: "1rem", background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "3rem" }}>‹</button>}
-            <img src={getPhotoUrl(lightbox, "display")} alt={lightbox.alt_text || lightbox.title || lightbox.file_name || "Gallery photo"} style={{ maxWidth: "100%", maxHeight: "78vh", objectFit: "contain", display: "block" }} />
-            {lightboxIndex < publicPhotos.length - 1 && <button type="button" onClick={() => goLightbox(1)} style={{ position: "absolute", right: "1rem", background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "3rem" }}>›</button>}
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.8rem", padding: "1rem" }}>
-            <button type="button" onClick={() => toggleFavorite(lightbox.id)} style={{ background: "transparent", border: "none", color: favorites.has(lightbox.id) ? themeColor : "#fff", cursor: "pointer", fontSize: "1.7rem", lineHeight: 1 }}>{favorites.has(lightbox.id) ? "♥" : "♡"}</button>
-            <button type="button" onClick={() => sharePhoto(lightbox)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.28)", color: "#fff", cursor: "pointer", fontFamily: shellFont, fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", padding: "0.75rem 1rem", textTransform: "uppercase" }}>Share</button>
-            <button type="button" onClick={() => downloadPhoto(lightbox)} style={{ background: themeColor, border: "none", color: "#111", cursor: "pointer", fontFamily: shellFont, fontSize: 11, fontWeight: 900, letterSpacing: "0.12em", padding: "0.75rem 1rem", textTransform: "uppercase" }}>Download</button>
-            <button type="button" onClick={() => setSlideshowPlaying((playing) => !playing)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.28)", color: "#fff", cursor: "pointer", fontFamily: shellFont, fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", padding: "0.75rem 1rem", textTransform: "uppercase" }}>{slideshowPlaying ? "Pause" : "Play"}</button>
-          </div>
-        </div>
+        <Lightbox
+          item={lightbox}
+          items={filtered}
+          onClose={() => setLightbox(null)}
+          onNav={setLightbox}
+        />
       )}
 
-      <footer style={{ borderTop: "1px solid rgba(0,0,0,0.08)", padding: "2.5rem 1rem", textAlign: "center" }}>
-        <a href="/" style={{ color: "#777", fontFamily: shellFont, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textDecoration: "none", textTransform: "uppercase" }}>{BRAND_NAME}</a>
-      </footer>
+      <Footer light />
     </div>
   );
 }
