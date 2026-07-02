@@ -65,7 +65,7 @@ export default function Footer() {
           {
             heading: "Navigate",
             links: [
-              { label: "Work", to: "/work" },
+              { label: "Gallery", to: "/gallery" },
               { label: "Services", to: "/services" },
               { label: "About", to: "/about" },
               { label: "Shop", to: "/shop" },
@@ -76,7 +76,7 @@ export default function Footer() {
             heading: "Services",
             links: [
               { label: "Weddings", to: "/services" },
-              { label: "Quinceañeras", to: "/services" },
+              { label: "Birthdays Events", to: "/services" },
               { label: "Portraits", to: "/services" },
               { label: "Film", to: "/services" },
               { label: "Commercial", to: "/services" },
